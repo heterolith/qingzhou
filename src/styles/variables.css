@@ -1,0 +1,111 @@
+/* CSS 变量定义 */
+:root {
+  /* 主色调 */
+  --primary: #1a1a1a;
+  --secondary: #ffffff;
+  --accent: #5e81f4;
+  
+  /* 公告栏颜色 */
+  --notice-color: #76ff7a;
+  --notice-bg: rgba(18, 18, 18, 0.95);
+  
+  /* 高亮颜色 */
+  --highlight-color: #ff8b46;
+  
+  /* 文字颜色 */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  
+  /* 背景颜色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f8f8;
+  --bg-card: #ffffff;
+  
+  /* 边框颜色 */
+  --border-color: #e0e0e0;
+  
+  /* 其他颜色 */
+  --light-gray: #e0e0e0;
+  --card-gray: #f8f8f8;
+  --link-color: #2d7ff9;
+  --qq-border: #FF6B6B;
+  --email-border: #4ECDC4;
+  --wechat-border: #52C41A;
+  
+  /* 阴影 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+  
+  /* 过渡效果 */
+  --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  
+  /* 装饰色 */
+  --decor-1: rgba(94, 129, 244, 0.3);
+  --decor-2: rgba(255, 139, 70, 0.3);
+  --decor-3: rgba(118, 255, 122, 0.3);
+  --decor-4: rgba(255, 107, 107, 0.3);
+  
+  /* 布局尺寸 */
+  --header-height: 70px;
+  --notice-height: 40px;
+  --sidebar-width: 300px;
+  --max-width: 1200px;
+  
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 50%;
+}
+
+/* 暗色模式变量 */
+.dark {
+  /* 主色调 */
+  --primary: #f0f0f0;
+  --secondary: #1a1a1a;
+  --accent: #7aa2f7;
+  
+  /* 公告栏颜色 */
+  --notice-color: #76ff7a;
+  --notice-bg: rgba(18, 18, 18, 0.95);
+  
+  /* 高亮颜色 */
+  --highlight-color: #ff8b46;
+  
+  /* 文字颜色 - 提高对比度 */
+  --text-primary: #f0f0f0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #888888;
+  
+  /* 背景颜色 */
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-card: #1e1e1e;
+  
+  /* 边框颜色 */
+  --border-color: #333333;
+  
+  /* 其他颜色 */
+  --light-gray: #333333;
+  --card-gray: #1e1e1e;
+  --link-color: #7aa2f7;
+  --qq-border: #FF6B6B;
+  --email-border: #4ECDC4;
+  --wechat-border: #52C41A;
+  
+  /* 阴影 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  
+  /* 装饰色 */
+  --decor-1: rgba(122, 162, 247, 0.15);
+  --decor-2: rgba(255, 139, 70, 0.15);
+  --decor-3: rgba(118, 255, 122, 0.15);
+  --decor-4: rgba(255, 107, 107, 0.15);
+}

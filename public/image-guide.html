@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>晴宙博客 - 图片路径指南</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --primary: #1a1a1a;
+      --accent: #46FF99;
+      --bg: #fafafa;
+      --card-bg: #ffffff;
+      --border: #e5e5e5;
+      --text-secondary: #666;
+      --highlight-bg: #fff3cd;
+      --code-bg: #f5f5f5;
+    }
+    
+    html.dark {
+      --primary: #f0f0f0;
+      --accent: #46FF99;
+      --bg: #0a0a0a;
+      --card-bg: #1a1a1a;
+      --border: #333;
+      --text-secondary: #b0b0b0;
+      --highlight-bg: #2d2a1f;
+      --code-bg: #252525;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--primary);
+      line-height: 1.8;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    /* 导航 */
+    .nav {
+      position: sticky;
+      top: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 32px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .nav h3 {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .nav-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      text-decoration: none;
+      color: var(--primary);
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .nav-links a:hover {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    
+    /* 标题 */
+    .page-title {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .page-title h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .page-title h1 span {
+      color: var(--accent);
+    }
+    
+    .page-title p {
+      color: var(--text-secondary);
+    }
+    
+    /* 章节 */
+    .section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      scroll-margin-top: 100px;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), #00cc77);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .section h2 {
+      font-size: 20px;
+    }
+    
+    .section-tag {
+      font-size: 12px;
+      padding: 4px 10px;
+      background: var(--code-bg);
+      border-radius: 12px;
+      color: var(--text-secondary);
+    }
+    
+    /* 表格 */
+    .table-wrap {
+      overflow-x: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      background: var(--code-bg);
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+    
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    
+    tr:last-child td {
+      border-bottom: none;
+    }
+    
+    /* 重点标注 */
+    .path {
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      background: var(--highlight-bg);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #d4a00a;
+      font-weight: 500;
+    }
+    
+    .file-path {
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      background: #e3f2fd;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #1976d2;
+      font-weight: 500;
+      display: inline-block;
+    }
+    
+    html.dark .file-path {
+      background: #1a3a4a;
+      color: #64b5f6;
+    }
+    
+    .line-num {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 2px 6px;
+      background: var(--code-bg);
+      border-radius: 4px;
+      margin-left: 4px;
+    }
+    
+    /* 代码块 */
+    .code-block {
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 16px 0;
+      border: 1px solid var(--border);
+    }
+    
+    .code-block .comment {
+      color: var(--text-secondary);
+    }
+    
+    .code-block .folder {
+      color: #4fc3f7;
+    }
+    
+    .code-block .file {
+      color: #81c784;
+    }
+    
+    /* 提示框 */
+    .tip {
+      background: linear-gradient(135deg, rgba(70, 255, 153, 0.1), rgba(0, 204, 119, 0.1));
+      border-left: 3px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+    
+    .tip-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* 清单 */
+    .checklist {
+      list-style: none;
+    }
+    
+    .checklist li {
+      padding: 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .checklist li:last-child {
+      border-bottom: none;
+    }
+    
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .checkbox.done {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+    
+    /* 示例代码 */
+    .example {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+    
+    .example-title {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    
+    .example code {
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 13px;
+    }
+    
+    /* 响应式 */
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+      
+      .section {
+        padding: 16px;
+      }
+      
+      .nav {
+        position: relative;
+        top: 0;
+      }
+      
+      th, td {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <div class="page-title">
+      <h1>晴宙博客 <span>图片路径指南</span></h1>
+      <p>快速定位图片引用位置，轻松添加自定义图片</p>
+    </div>
+    
+    <!-- 快速导航 -->
+    <nav class="nav">
+      <h3>📑 快速导航</h3>
+      <div class="nav-links">
+        <a href="#overview">📂 目录结构</a>
+        <a href="#avatar">👤 头像类</a>
+        <a href="#carousel">🖼️ 轮播图</a>
+        <a href="#works">📝 作品展示</a>
+        <a href="#resources">📦 资源图标</a>
+        <a href="#favicon">🌐 网站图标</a>
+        <a href="#checklist">✅ 待添加清单</a>
+      </div>
+    </nav>
+    
+    <!-- 目录结构 -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <div class="section-icon">📂</div>
+        <h2>图片存储位置</h2>
+        <span class="section-tag">分文件夹管理</span>
+      </div>
+      
+      <p style="margin-bottom: 16px;">本项目使用 <strong>Vite</strong> 构建，图片按类别分文件夹存放在 <span class="path">public/</span> 目录下：</p>
+      
+      <div class="code-block">
+<span class="folder">public/</span>
+├── <span class="file">favicon.ico</span>              <span class="comment"># 网站图标 (已存在)</span>
+│
+├── <span class="folder">avatar/</span>                  <span class="comment"># 头像类</span>
+│   └── <span class="file">avatar.jpg</span>             <span class="comment"># 头像图片 (需添加)</span>
+│
+├── <span class="folder">carousel/</span>                <span class="comment"># 轮播图类</span>
+│   ├── <span class="file">slide1.jpg</span>             <span class="comment"># 轮播图1 (需添加)</span>
+│   ├── <span class="file">slide2.jpg</span>             <span class="comment"># 轮播图2 (需添加)</span>
+│   └── <span class="file">slide3.jpg</span>             <span class="comment"># 轮播图3 (需添加)</span>
+│
+├── <span class="folder">works/</span>                   <span class="comment"># 作品/文章封面类</span>
+│   └── ...                          <span class="comment"># (从数据库获取)</span>
+│
+└── <span class="folder">resources/</span>               <span class="comment"># 资源图标类</span>
+    └── <span class="file">qing.png</span>               <span class="comment"># 默认资源图标 (需添加)</span>
+      </div>
+    </section>
+    
+    <!-- 头像类 -->
+    <section class="section" id="avatar">
+      <div class="section-header">
+        <div class="section-icon">👤</div>
+        <h2>头像类图片</h2>
+        <span class="section-tag">public/avatar/</span>
+      </div>
+      
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>文件位置</th>
+              <th>变量名</th>
+              <th>默认值</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="file-path">src/components/layout/Sidebar.vue</span>
+                <span class="line-num">第71行</span>
+              </td>
+              <td><code>avatar</code></td>
+              <td><span class="path">avatar/avatar.jpg</span></td>
+              <td>侧边栏头像</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="file-path">src/views/AboutView.vue</span>
+                <span class="line-num">第103行</span>
+              </td>
+              <td><code>avatar</code></td>
+              <td><span class="path">avatar/avatar.jpg</span></td>
+              <td>关于页头像</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="file-path">src/views/HomeView.vue</span>
+                <span class="line-num">第510行</span>
+              </td>
+              <td><code>CSS背景图</code></td>
+              <td><span class="path">avatar/avatar.jpg</span></td>
+              <td>首页Hero区域头像</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="tip">
+        <div class="tip-title">💡 修改建议</div>
+        将你的头像文件命名为 <span class="path">avatar.jpg</span> 放入 <span class="path">public/avatar/</span> 目录即可全局生效
+      </div>
+    </section>
+    
+    <!-- 轮播图 -->
+    <section class="section" id="carousel">
+      <div class="section-header">
+        <div class="section-icon">🖼️</div>
+        <h2>轮播图 / 文章封面</h2>
+        <span class="section-tag">public/carousel/</span>
+      </div>
+      
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>文件位置</th>
+              <th>变量名</th>
+              <th>默认值</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="file-path">src/views/HomeView.vue</span>
+                <span class="line-num">第154行</span>
+              </td>
+              <td><code>image</code></td>
+              <td><span class="path">carousel/slide1.jpg</span></td>
+              <td>首页轮播图卡片1</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="file-path">src/views/HomeView.vue</span>
+                <span class="line-num">第162行</span>
+              </td>
+              <td><code>image</code></td>
+              <td><span class="path">carousel/slide2.jpg</span></td>
+              <td>首页轮播图卡片2</td>
+            </tr>
+            <tr>
+              <td>
+                <span class="file-path">src/views/HomeView.vue</span>
+                <span class="line-num">第170行</span>
+              </td>
+              <td><code>image</code></td>
+              <td><span class="path">carousel/slide3.jpg</span></td>
+              <td>首页轮播图卡片3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="tip">
+        <div class="tip-title">💡 尺寸建议</div>
+        轮播图推荐尺寸：<strong>800×600px (4:3)</strong> 或 <strong>600×400px</strong>，格式 JPG 或 WebP
+      </div>
+    </section>
+    
+    <!-- 作品展示 -->
+    <section class="section" id="works">
+      <div class="section-header">
+        <div class="section-icon">📝</div>
+        <h2>作品展示类图片</h2>
+        <span class="section-tag">public/works/</span>
+      </div>
+      
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>文件位置</th>
+              <th>变量名</th>
+              <th>来源</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="file-path">src/views/WorksView.vue</span>
+                <span class="line-num">第117行</span>
+              </td>
+              <td><code>image</code></td>
+              <td>数据库字段 <code>item.image</code></td>
+              <td>作品封面图</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="tip">
+        <div class="tip-title">⚠️ 注意</div>
+        作品图片从 <strong>Supabase 数据库</strong> 获取，<code>image</code> 字段存储完整URL或相对路径
+      </div>
+    </section>
+    
+    <!-- 资源图标 -->
+    <section class="section" id="resources">
+      <div class="section-header">
+        <div class="section-icon">📦</div>
+        <h2>资源类图标</h2>
+        <span class="section-tag">public/resources/</span>
+      </div>
+      
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>文件位置</th>
+              <th>变量名</th>
+              <th>默认值</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="file-path">src/views/ResourcesView.vue</span>
+                <span class="line-num">第134行</span>
+              </td>
+              <td><code>icon</code></td>
+              <td><span class="path">resources/qing.png</span></td>
+              <td>资源图标（无图时显示）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="tip">
+        <div class="tip-title">💡 尺寸建议</div>
+        资源图标推荐尺寸：<strong>64×64px</strong> 或 <strong>128×128px</strong>，格式 PNG 或 SVG
+      </div>
+    </section>
+    
+    <!-- 网站图标 -->
+    <section class="section" id="favicon">
+      <div class="section-header">
+        <div class="section-icon">🌐</div>
+        <h2>网站图标</h2>
+        <span class="section-tag">public/</span>
+      </div>
+      
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>文件位置</th>
+              <th>引用方式</th>
+              <th>路径</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <span class="file-path">index.html</span>
+              </td>
+              <td><code>&lt;link rel="icon"&gt;</code></td>
+              <td><span class="path">/favicon.ico</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="tip">
+        <div class="tip-title">💡 尺寸建议</div>
+        网站图标推荐尺寸：<strong>32×32px</strong> 或 <strong>64×64px</strong>，格式 ICO 或 PNG
+      </div>
+    </section>
+    
+    <!-- 待添加清单 -->
+    <section class="section" id="checklist">
+      <div class="section-header">
+        <div class="section-icon">✅</div>
+        <h2>待添加图片清单</h2>
+        <span class="section-tag">Checklist</span>
+      </div>
+      
+      <p style="margin-bottom: 16px;">以下图片在代码中被引用，但对应目录中尚未存在：</p>
+      
+      <ul class="checklist">
+        <li>
+          <span class="checkbox">☐</span>
+          <span class="path">public/avatar/avatar.jpg</span>
+          <span>— 头像图片</span>
+        </li>
+        <li>
+          <span class="checkbox">☐</span>
+          <span class="path">public/carousel/slide1.jpg</span>
+          <span>— 轮播图卡片1</span>
+        </li>
+        <li>
+          <span class="checkbox">☐</span>
+          <span class="path">public/carousel/slide2.jpg</span>
+          <span>— 轮播图卡片2</span>
+        </li>
+        <li>
+          <span class="checkbox">☐</span>
+          <span class="path">public/carousel/slide3.jpg</span>
+          <span>— 轮播图卡片3</span>
+        </li>
+        <li>
+          <span class="checkbox">☐</span>
+          <span class="path">public/resources/qing.png</span>
+          <span>— 资源默认图标（可选）</span>
+        </li>
+      </ul>
+    </section>
+    
+  </div>
+  
+  <script>
+    // 点击导航链接时平滑滚动
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
