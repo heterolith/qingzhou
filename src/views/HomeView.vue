@@ -156,6 +156,7 @@ let currentOffset = 0  // 初始化为0，在initCarousel中根据cardCount.valu
 let isAnimating = false
 let autoPlayTimer = null
 let isCarouselInitialized = false
+
 const cardsTrack = ref(null)
 const cardsContainer = ref(null)
 const dotsContainer = ref(null)
@@ -894,6 +895,8 @@ section {
   }
 }
 
+/* ============ 响应式 ============ */
+
 /* 响应式 */
 @media (max-width: 992px) {
   .hero-content {
@@ -922,21 +925,39 @@ section {
 }
 
 @media (max-width: 768px) {
+  .container {
+    width: 100%;
+    padding: 0 20px;
+  }
+
+  section {
+    padding: 60px 0;
+  }
+
   .hero {
-    padding: 40px 4%;
+    padding: 40px 0 20px 0;
+    min-height: auto;
+  }
+
+  .hero-content {
+    padding: 0 20px;
   }
 
   .carousel-section {
-    padding: 50px 20px;
-    min-height: 60vh;
+    padding: 40px 0;
+    min-height: auto;
   }
 
   .carousel {
     max-width: 380px;
   }
 
+  .carousel-container {
+    padding: 0;
+  }
+
   .cards-track {
-    gap: 20px;
+    gap: 16px;
   }
 
   .card-content {
@@ -997,52 +1018,77 @@ section {
     width: 32px;
     height: 3px;
   }
-}
 
-@media (max-width: 480px) {
-  .hero-buttons {
-    width: 100%;
-    gap: 12px;
+  .daily-quote {
+    min-height: auto;
+    padding: 40px 16px;
   }
 
-  .btn {
-    width: 100%;
-    padding: 12px 24px;
+  .daily-quote-content {
+    padding: 30px 20px;
   }
 
   .contact-card {
-    min-height: 120px;
-    padding: 15px;
+    max-width: 120px;
+    min-height: 100px;
+    aspect-ratio: auto;
   }
 }
 
-@media (max-width: 360px) {
-  .hero-title p {
-    font-size: clamp(2rem, 10vw, 3.5rem);
+@media (max-width: 480px) {
+  .container {
+    padding: 0 16px;
   }
 
-  .hero-title span {
-    font-size: clamp(1.4rem, 7vw, 2.5rem);
+  .hero {
+    padding: 30px 0 16px 0;
+  }
+
+  .hero-content {
+    padding: 0 16px;
   }
 
   .hero-avatar {
-    flex: 0 0 120px;
+    flex: 0 0 140px;
   }
 
   .avatar-img {
-    width: 120px;
-    height: 120px;
-    border-width: 4px;
+    width: 140px;
+    height: 140px;
+    border-width: 5px;
   }
 
   .hero-buttons {
     width: 100%;
+    gap: 10px;
   }
 
   .btn {
     width: 100%;
-    padding: 12px 20px;
+    padding: 11px 20px;
     font-size: 0.9rem;
+  }
+
+  .carousel-section {
+    padding: 30px 0;
+  }
+
+  .card-left {
+    padding: 16px;
+  }
+
+  .card-right {
+    height: 160px;
+    padding: 12px;
+  }
+
+  .card-title {
+    font-size: 16px;
+  }
+
+  .card-subtitle {
+    font-size: 13px;
+    -webkit-line-clamp: 2;
   }
 
   .section-title h2 {
@@ -1050,12 +1096,11 @@ section {
   }
 
   .daily-quote {
-    min-height: 50vh;
-    padding: 40px 15px;
+    padding: 30px 12px;
   }
 
   .daily-quote-content {
-    padding: 30px 20px;
+    padding: 24px 16px;
   }
 
   .quote-text {
@@ -1065,11 +1110,79 @@ section {
   .quote-divider {
     min-width: 80px;
     max-width: 200px;
+    margin-top: 24px;
   }
 
   .contact-card {
-    min-height: 120px;
-    padding: 15px;
+    min-height: 90px;
+    padding: 12px;
+    max-width: 100px;
+  }
+
+  .contact-link-item span {
+    font-size: 0.85rem;
+  }
+}
+
+/* 超小屏 */
+@media (max-width: 360px) {
+  .container {
+    padding: 0 12px;
+  }
+
+  .hero-content {
+    padding: 0 12px;
+  }
+
+  .hero-title p {
+    font-size: clamp(1.8rem, 10vw, 3rem);
+  }
+
+  .hero-title span {
+    font-size: clamp(1.3rem, 7vw, 2.2rem);
+  }
+
+  .hero-avatar {
+    flex: 0 0 110px;
+  }
+
+  .avatar-img {
+    width: 110px;
+    height: 110px;
+    border-width: 4px;
+  }
+
+  .card-left {
+    padding: 14px;
+  }
+
+  .card-right {
+    height: 140px;
+    padding: 10px;
+  }
+
+  .card-title {
+    font-size: 15px;
+  }
+
+  .tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    margin-bottom: 8px;
+  }
+
+  .section-title h2 {
+    font-size: 1.5rem;
+  }
+
+  .contact-card {
+    min-height: 80px;
+    padding: 10px;
+    max-width: 90px;
+  }
+
+  .contact-link-item span {
+    font-size: 0.8rem;
   }
 }
 
