@@ -64,14 +64,12 @@
               </a>
             </div>
           </div>
-
           <!-- 指示器 -->
           <div class="dots-container" ref="dotsContainer" id="dotsContainer">
             <div class="dot active"></div>
             <div class="dot"></div>
             <div class="dot"></div>
           </div>
-
           <!-- 左右按钮 -->
           <button class="nav-button prev" id="prevBtn" title="上一张" @click.prevent="prev">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -152,7 +150,7 @@ const cardCount = computed(() => carouselCards.value.length)
 
 // 轮播状态
 const currentIndex = ref(0)
-let currentOffset = 0  // 初始化为0，在initCarousel中根据cardCount.value设置
+let currentOffset = 0
 let isAnimating = false
 let autoPlayTimer = null
 let isCarouselInitialized = false
@@ -206,31 +204,24 @@ const scheduleNextSwitch = () => {
 const next = () => {
   if (isAnimating) return
   isAnimating = true
-
   if (autoPlayTimer) {
     clearTimeout(autoPlayTimer)
     autoPlayTimer = null
   }
-
   currentIndex.value = (currentIndex.value + 1) % cardCount.value
   currentOffset++
-
   moveTo(currentOffset)
   updateDots(currentIndex.value)
-
   setTimeout(() => {
     isAnimating = false
-
     if (currentOffset >= cardCount.value * 5) {
       cardsTrack.value.style.transition = 'none'
       currentOffset = cardCount.value * 3
       moveTo(currentOffset)
-
       setTimeout(() => {
         cardsTrack.value.style.transition = 'transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1)'
       }, 10)
     }
-
     scheduleNextSwitch()
   }, 600)
 }
@@ -239,31 +230,24 @@ const next = () => {
 const prev = () => {
   if (isAnimating) return
   isAnimating = true
-
   if (autoPlayTimer) {
     clearTimeout(autoPlayTimer)
     autoPlayTimer = null
   }
-
   currentIndex.value = (currentIndex.value - 1 + cardCount.value) % cardCount.value
   currentOffset--
-
   moveTo(currentOffset)
   updateDots(currentIndex.value)
-
   setTimeout(() => {
     isAnimating = false
-
     if (currentOffset < cardCount.value * 2) {
       cardsTrack.value.style.transition = 'none'
       currentOffset = cardCount.value * 5 - 1
       moveTo(currentOffset)
-
       setTimeout(() => {
         cardsTrack.value.style.transition = 'transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1)'
       }, 10)
     }
-
     scheduleNextSwitch()
   }, 600)
 }
@@ -272,18 +256,14 @@ const prev = () => {
 const goTo = (index) => {
   if (isAnimating) return
   isAnimating = true
-
   if (autoPlayTimer) {
     clearTimeout(autoPlayTimer)
     autoPlayTimer = null
   }
-
   currentIndex.value = index
   currentOffset = cardCount.value * 3 + index
-
   moveTo(currentOffset)
   updateDots(currentIndex.value)
-
   setTimeout(() => {
     isAnimating = false
     scheduleNextSwitch()
@@ -328,7 +308,6 @@ const handleTouchMove = (e) => {
   const touch = e.touches[0]
   const diffX = touchStartX - touch.clientX
   const diffY = touchStartY - touch.clientY
-
   if (Math.abs(diffX) > Math.abs(diffY)) {
     e.preventDefault()
   }
@@ -337,10 +316,8 @@ const handleTouchMove = (e) => {
 const handleTouchEnd = (e) => {
   const touchEndX = e.changedTouches[0].clientX
   const touchEndY = e.changedTouches[0].clientY
-
   const diffX = touchStartX - touchEndX
   const diffY = touchStartY - touchEndY
-
   if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > SWIPE_THRESHOLD) {
     if (diffX > 0) {
       next()
@@ -404,11 +381,9 @@ const initCarousel = () => {
 }
 
 onMounted(() => {
-  // 尝试初始化（如果数据已就绪）
   initCarousel()
 })
 
-// 监听数据变化，数据到位后初始化轮播
 watch(carouselCards, (newVal) => {
   if (newVal && newVal.length > 0) {
     initCarousel()
@@ -433,6 +408,7 @@ onUnmounted(() => {
 <style scoped>
 .home {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .container {
@@ -897,7 +873,7 @@ section {
 
 /* ============ 响应式 ============ */
 
-/* 响应式 */
+/* 平板 */
 @media (max-width: 992px) {
   .hero-content {
     flex-direction: column-reverse;
@@ -924,6 +900,7 @@ section {
   }
 }
 
+/* 手机 */
 @media (max-width: 768px) {
   .container {
     width: 100%;
@@ -935,7 +912,7 @@ section {
   }
 
   .hero {
-    padding: 40px 0 20px 0;
+    padding: 120px 0 30px 0;
     min-height: auto;
   }
 
@@ -949,11 +926,11 @@ section {
   }
 
   .carousel {
-    max-width: 380px;
+    max-width: 100%;
   }
 
   .carousel-container {
-    padding: 0;
+    padding: 0 20px;
   }
 
   .cards-track {
@@ -1035,13 +1012,14 @@ section {
   }
 }
 
+/* 小屏手机 */
 @media (max-width: 480px) {
   .container {
     padding: 0 16px;
   }
 
   .hero {
-    padding: 30px 0 16px 0;
+    padding: 110px 0 20px 0;
   }
 
   .hero-content {
@@ -1071,6 +1049,10 @@ section {
 
   .carousel-section {
     padding: 30px 0;
+  }
+
+  .carousel-container {
+    padding: 0 16px;
   }
 
   .card-left {
@@ -1156,6 +1138,10 @@ section {
     padding: 14px;
   }
 
+  .carousel-container {
+    padding: 0 12px;
+  }
+
   .card-right {
     height: 140px;
     padding: 10px;
@@ -1186,6 +1172,7 @@ section {
   }
 }
 
+/* 大屏 */
 @media (min-width: 1200px) {
   .container {
     max-width: 1250px;
