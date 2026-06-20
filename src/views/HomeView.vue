@@ -339,7 +339,7 @@ const initCarousel = () => {
   
   nextTick(() => {
     cloneCards()
-    
+    nextTick(() => {
     currentOffset = cardCount.value * 3
     
     if (cardsTrack.value) {
