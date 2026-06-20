@@ -165,7 +165,7 @@ let originalCardsRef = null
 // 获取卡片宽度
 const getCardWidth = () => {
   if (originalCardsRef && originalCardsRef[0]) {
-    return originalCardsRef[0].offsetWidth + (window.innerWidth > 768 ? 30 : 20)
+    return originalCardsRef[0].offsetWidth + (window.innerWidth > 768 ? 30 : 16)
   }
   return 930 + (window.innerWidth > 768 ? 30 : 20)
 }
