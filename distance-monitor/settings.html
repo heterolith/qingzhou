@@ -17,6 +17,12 @@
     <button class="icon-btn right" id="placeholderBtn"><i class="fas fa-ellipsis-vertical"></i></button>
   </header>
 
+  <!-- 固件连接状态条（只读，连接操作在控制页）-->
+  <div class="conn-bar" id="connBar">
+    <i class="fas fa-wifi" id="connIcon"></i>
+    <span class="conn-status" id="connStatus" style="margin-left:4px">未连接 · 设置仅本地生效</span>
+  </div>
+
   <main class="settings-content">
 
     <!-- ===== 监测设置（固件核心参数）===== -->
@@ -157,15 +163,33 @@
 
 <script src="js/firmware.js"></script>
 <script src="js/common.js"></script>
+<script src="js/connect.js"></script>
 <script>
 /* ==========================================================
    设置页专属逻辑（对齐固件版）
    核心约定：所有修改只走 updateSetting()，UI 状态由本页
    的 refreshUI() 从 loadSettings() 读回来渲染，保证所见即所存
    阈值单位 cm，对齐固件 TMP_THRESHOLD
+   连固件时 threshold 变更会通过 updateSetting 同步给固件
    ========================================================== */
 const SENS_TEXT = { 1: '低 · 单次越限触发', 2: '标准 · 连续 3 次越限触发', 3: '高 · 实时触发' };
 const VIB_TEXT  = { 1: '弱 · 持续 200ms',  2: '中 · 持续 500ms',        3: '强 · 持续 1000ms' };
+
+/* ===== 连接状态条刷新 ===== */
+function refreshConnBar() {
+  const icon = document.getElementById('connIcon');
+  const status = document.getElementById('connStatus');
+  if (Conn.isOnline()) {
+    icon.className = 'fas fa-circle-check';
+    icon.style.color = 'var(--tertiary)';
+    status.textContent = '已连固件 · 阈值同步下发';
+  } else {
+    icon.className = 'fas fa-wifi';
+    icon.style.color = 'var(--outline)';
+    status.textContent = '未连接 · 设置仅本地生效';
+  }
+}
+document.addEventListener('conn-state', refreshConnBar);
 
 /* ===== 滑块进度条着色（--fill 变量驱动 CSS 渐变）===== */
 function paintSlider(el, min, max) {
@@ -294,6 +318,7 @@ document.getElementById('resetConfirm').addEventListener('click', () => {
 });
 
 /* ===== 初始化 ===== */
+refreshConnBar();
 refreshUI();
 </script>
 </body>

@@ -52,6 +52,13 @@ function updateSetting(key, value) {
   s[key] = value;
   applySensorRules(s);
   saveSettings(s);
+  // 连固件时同步设置给固件（仅固件支持的参数）
+  if (typeof Conn !== 'undefined' && Conn.isOnline()) {
+    if (key === 'threshold') {
+      Conn.sendSetting('threshold', value);
+    }
+    // sensorOn / irOn 等传感器开关固件暂不支持运行时切换，只本地生效
+  }
   return s;
 }
 

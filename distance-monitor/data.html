@@ -17,6 +17,12 @@
     <a class="icon-btn right" href="settings.html"><i class="fas fa-gear color"></i></a>
   </header>
 
+  <!-- 固件连接状态条（只读，连接操作在控制页）-->
+  <div class="conn-bar" id="connBar">
+    <i class="fas fa-wifi" id="connIcon"></i>
+    <span class="conn-status" id="connStatus" style="margin-left:4px">未连接 · 模拟模式</span>
+  </div>
+
   <main class="data-content">
 
     <!-- 时间范围选择 -->
@@ -93,14 +99,40 @@
 
 <script src="js/firmware.js"></script>
 <script src="js/common.js"></script>
+<script src="js/connect.js"></script>
 <script>
 /* ==========================================================
    数据页专属逻辑（对齐固件版）
-   实时距离：measureMedian()（与控制页同款固件逻辑）
+   实时距离：连固件用 WebSocket 真实数据，未连用 measureMedian() 模拟
    历史数据：量程对齐固件 400cm，TMP 阈值联动 settings.threshold
    ========================================================== */
 const settings = loadSettings();
 let currentDistance = 50;
+
+/* ===== 连接状态条刷新 ===== */
+function refreshConnBar() {
+  const icon = document.getElementById('connIcon');
+  const status = document.getElementById('connStatus');
+  if (Conn.isOnline()) {
+    icon.className = 'fas fa-circle-check';
+    icon.style.color = 'var(--tertiary)';
+    status.textContent = '已连固件 · 实时数据';
+  } else {
+    icon.className = 'fas fa-wifi';
+    icon.style.color = 'var(--outline)';
+    status.textContent = '未连接 · 模拟模式';
+  }
+}
+document.addEventListener('conn-state', refreshConnBar);
+
+/* ===== 收到固件数据时刷新实时摘要 + 曲线 ===== */
+Conn.onData((msg) => {
+  if (msg.distance != null) {
+    currentDistance = msg.distance;
+    refreshLiveCard();
+    drawChart();
+  }
+});
 
 /* ===== 实时摘要卡：传感器名 + 状态徽章 ===== */
 function refreshLiveCard() {
@@ -123,8 +155,9 @@ function refreshLiveCard() {
   }
 }
 
-/* ===== 模拟实时距离（用固件同款 measureMedian）===== */
+/* ===== 模拟实时距离（未连固件时用固件同款 measureMedian）===== */
 setInterval(() => {
+  if (Conn.isOnline()) return;          /* 连固件时由 onData 驱动 */
   if (!settings.sensorOn && !settings.irOn) return;
   currentDistance = measureMedian();   /* 固件同款：三次取中值 */
   refreshLiveCard();
@@ -259,6 +292,7 @@ function renderLogs() {
 }
 
 /* ===== 初始化 ===== */
+refreshConnBar();
 refreshLiveCard();
 updateStats();
 renderLogs();

@@ -64,6 +64,35 @@ body {
 .icon-btn.left { margin-right: auto; }
 .icon-btn.right { margin-left: auto; }
 
+/* ====== 固件连接条 ====== */
+.conn-bar {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface-variant);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.conn-bar > i { font-size: 1rem; }
+.conn-input {
+  flex: 1; min-width: 0; min-height: 32px;
+  border: 1px solid var(--outline); border-radius: 999px;
+  padding: 0 12px; font-size: 13px; font-family: inherit;
+  background: var(--surface); color: var(--on-surface); outline: none;
+}
+.conn-btn {
+  min-height: 32px; padding: 0 16px; border: none; border-radius: 999px;
+  background: var(--primary); color: var(--on-primary);
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+  flex-shrink: 0;
+}
+.conn-btn:active { transform: scale(.97); }
+.conn-status {
+  font-size: 11px; color: var(--on-surface-variant);
+  white-space: nowrap; flex-shrink: 0;
+}
+@media (max-width: 480px) {
+  .conn-status { display: none; }
+}
+
 /* ====== 底部导航 ====== */
 .nav-bar {
   flex-shrink: 0; display: flex; background: var(--surface);

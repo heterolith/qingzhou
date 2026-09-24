@@ -18,6 +18,14 @@
     <a class="icon-btn right" href="settings.html"><i class="fas fa-gear color"></i></a>
   </header>
 
+  <!-- 固件连接条（输入 ESP8266 IP，连接/断开）-->
+  <div class="conn-bar" id="connBar">
+    <i class="fas fa-wifi" id="connIcon"></i>
+    <input type="text" id="connIP" placeholder="ESP8266 IP (如 192.168.1.50)" class="conn-input">
+    <button class="conn-btn" id="connBtn">连接</button>
+    <span class="conn-status" id="connStatus">未连接 · 模拟模式</span>
+  </div>
+
   <main class="content">
 
     <!-- 传感器指示徽章 -->
@@ -109,16 +117,61 @@
 
 <script src="js/firmware.js"></script>
 <script src="js/common.js"></script>
+<script src="js/connect.js"></script>
 <script>
 /* ==========================================================
    主页专属逻辑（对齐固件版）
-   数据源：firmware.js 的 measureMedian()（三次取中值）
+   数据源优先级：连固件 → WebSocket 真实数据；未连 → firmware.js 模拟
    OLED 三态：Invalid / TMP闪烁 / 数值+进度条
    报警/蜂鸣/震动为 Web 增值（固件无）
    ========================================================== */
 const settings = loadSettings();
 let currentDist = 50;
 let currentState = 'normal';
+
+/* ===== 连接 UI 初始化 ===== */
+function refreshConnUI() {
+  const ip = Conn.loadIP();
+  document.getElementById('connIP').value = ip;
+  const icon = document.getElementById('connIcon');
+  const btn = document.getElementById('connBtn');
+  const status = document.getElementById('connStatus');
+  const map = {
+    [ConnState.OFFLINE]:   { icon: 'fa-wifi',         color: '#72777f', text: '未连接 · 模拟模式',  btn: '连接' },
+    [ConnState.CONNECTING]:{ icon: 'fa-spinner',      color: '#00639b', text: '连接中…',           btn: '取消' },
+    [ConnState.ONLINE]:    { icon: 'fa-circle-check', color: '#4c651f', text: '已连固件 · 实时数据', btn: '断开' },
+    [ConnState.ERROR]:     { icon: 'fa-triangle-exclamation', color: '#ba1a1a', text: '连接失败 · 模拟模式', btn: '连接' },
+  };
+  const m = map[Conn.state] || map[ConnState.OFFLINE];
+  icon.className = 'fas ' + m.icon;
+  icon.style.color = m.color;
+  btn.textContent = m.btn;
+  status.textContent = m.text;
+  // 连固件时隐藏模拟控制条
+  document.getElementById('simModeRow').style.display =
+    Conn.isOnline() ? 'none' : 'flex';
+}
+Conn.onStateChange = refreshConnUI;
+document.addEventListener('conn-state', refreshConnUI);
+
+/* ===== 连接按钮 ===== */
+document.getElementById('connBtn').addEventListener('click', () => {
+  if (Conn.isOnline() || Conn.state === ConnState.CONNECTING) {
+    Conn.disconnect();
+  } else {
+    const ip = document.getElementById('connIP').value.trim();
+    if (ip) Conn.connect(ip, 81);
+  }
+});
+
+/* ===== 收到固件数据时更新本地（仅用真实数据，不覆盖设置）===== */
+Conn.onData((msg) => {
+  if (msg.distance != null) {
+    currentDist = msg.distance;
+    currentState = msg.state || getDistanceState(currentDist);
+    updateUI();  // 立即刷新 UI（不等 1 秒 tick）
+  }
+});
 
 /* ===== 初始化模拟物体（对齐设置页 simMode/simDistance）===== */
 setSimMode(settings.simMode);
@@ -198,13 +251,10 @@ function renderOLED(d, state) {
   }
 }
 
-/* ===== 全量刷新（对齐固件 loop：measureMedian → 三态分支）===== */
-function tick() {
-  if (!settings.sensorOn && !settings.irOn) return;  // 传感器全关，不更新
-
-  const d = measureMedian();           // 固件同款：三次取中值
-  currentDist = d;
-  currentState = getDistanceState(d);  // 固件同款：三态判断
+/* ===== 全量刷新 UI（数据源：连固件用真实，未连用模拟 measureMedian）===== */
+function updateUI() {
+  const d = currentDist;
+  const state = currentState;
 
   /* --- OLED 渲染 --- */
   renderOLED(d, currentState);
@@ -283,8 +333,20 @@ function tick() {
   /* --- 串口日志 --- */
   appendSerial(d);
 }
-setInterval(tick, 1000);
-tick();  // 立即执行一次，避免首秒空白
+
+/* ===== 模拟模式专用循环（未连固件时每秒测一次）===== */
+function simTick() {
+  if (Conn.isOnline()) return;           // 连固件时由 onData 驱动，不模拟
+  if (!settings.sensorOn && !settings.irOn) return;
+  currentDist = measureMedian();
+  currentState = getDistanceState(currentDist);
+  updateUI();
+}
+setInterval(simTick, 1000);
+
+/* ===== 初始渲染 ===== */
+refreshConnUI();
+simTick();  // 首次模拟渲染（连固件后由 onData 接管）
 
 /* ===== TMP 闪烁循环（对齐固件 showTmp 显示/空白交替）===== */
 /* 每 50ms 检查一次，按 getTmpInterval(d) 计算 phase 切 blank 类 */
