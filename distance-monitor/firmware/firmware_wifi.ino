@@ -19,7 +19,7 @@
 #include <Adafruit_SSD1306.h>
 
 /* ===== WiFi 配置（改成你的）===== */
-const char* WIFI_SSID = "IQOONeo 10";
+const char* WIFI_SSID = "iQOONeo 10";
 const char* WIFI_PASS = "147963Zxcvbnm.";
 
 /* ===== 固件常量（对齐 1.txt）===== */
@@ -220,6 +220,43 @@ void broadcastData(uint8_t except) {
   else { Serial.print(d); Serial.println(" cm"); }
 }
 
+/* ===== WiFi 连接状态 ===== */
+bool wifiConnected = false;
+bool wsStarted = false;
+unsigned long lastWifiShow = 0;
+
+/* ===== OLED 显示连接中界面 ===== */
+void showConnecting() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  printCentered("CONNECTING", 6, 1);
+
+  // 显示 WiFi 名（可能太长会截断，用小字）
+  display.setTextSize(1);
+  display.setCursor(0, 22);
+  display.print("WiFi:");
+  display.setCursor(0, 34);
+  display.print(WIFI_SSID);
+
+  // 动画点
+  int dots = (millis() / 400) % 4;
+  String dotsStr = "";
+  for (int i = 0; i < dots; i++) dotsStr += ".";
+  printCentered(dotsStr, 50, 2);
+
+  display.display();
+}
+
+/* ===== OLED 显示连接成功界面（显示2.5秒后切测距）===== */
+void showWiFiOK() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  printCentered("WiFi OK", 4, 2);
+  printCentered(WiFi.localIP().toString(), 30, 1);
+  printCentered(":81", 44, 1);
+  display.display();
+}
+
 /* ==========================================================
    setup
    ========================================================== */
@@ -245,37 +282,49 @@ void setup() {
   display.display();
   Serial.println("OLED ok");
 
-  // WiFi 连接
+  // WiFi 开始连接（非阻塞，不等结果）
   Serial.printf("连接 WiFi: %s\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.print("WiFi 已连接，IP: ");
-  Serial.println(WiFi.localIP());
 
-  // 启动 WebSocket 服务
-  webSocket.begin();
-  webSocket.onEvent(webSocketEvent);
-  Serial.println("WebSocket 服务已启动 (端口 81)");
-
-  // 在 OLED 上显示 IP
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  printCentered("WiFi OK", 8, 2);
-  printCentered(WiFi.localIP().toString(), 34, 1);
-  printCentered(":81", 50, 1);
-  display.display();
-  delay(2500);
+  // 立即显示连接中界面
+  showConnecting();
 }
 
 /* ==========================================================
-   loop：每秒测距 + 广播 + WebSocket 维护
+   loop：非阻塞 WiFi 连接 + WebSocket 维护 + 每秒测距广播
    ========================================================== */
 void loop() {
-  webSocket.loop();  // 必须循环调用，处理 WebSocket 事件
+  // === 阶段1：WiFi 未连上 ===
+  if (!wifiConnected) {
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiConnected = true;
+      Serial.println();
+      Serial.print("WiFi 已连接，IP: ");
+      Serial.println(WiFi.localIP());
+
+      // 启动 WebSocket
+      webSocket.begin();
+      webSocket.onEvent(webSocketEvent);
+      wsStarted = true;
+      Serial.println("WebSocket 服务已启动 (端口 81)");
+
+      // OLED 显示 IP（持续2.5秒）
+      showWiFiOK();
+      lastBroadcast = millis();  // 重置计时器
+      delay(2500);
+    } else {
+      // 持续显示连接中（每400ms刷新动画）
+      if (millis() - lastWifiShow > 350) {
+        lastWifiShow = millis();
+        showConnecting();
+        Serial.print(".");
+      }
+    }
+    return;  // WiFi 没连上时不进入测距
+  }
+
+  // === 阶段2：WiFi 已连，正常测距 ===
+  if (wsStarted) webSocket.loop();
 
   unsigned long now = millis();
   if (now - lastBroadcast >= 1000) {  // 每秒一次（与网页 setInterval 一致）
