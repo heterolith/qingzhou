@@ -1,0 +1,34 @@
+# 本地启动方法
+
+## 方法一：Python（电脑装了 Python 就行，最简单）
+
+在 distance-monitor 文件夹里打开终端/命令行，运行：
+
+```
+python -m http.server 8080
+```
+
+然后浏览器打开 http://localhost:8080
+
+## 方法二：Node.js
+
+装好 Node.js 后，在 distance-monitor 文件夹里运行：
+
+```
+npx serve
+```
+
+或
+
+```
+npx http-server -p 8080
+```
+
+然后浏览器打开 http://localhost:8080
+
+## 连接 ESP8266
+
+1. ESP8266 烧好固件后，串口监视器会打印 IP（如 192.168.43.x）
+2. 浏览器打开 http://localhost:8080
+3. 顶部连接条输入 ESP8266 的 IP，点"连接"
+4. 手机或电脑要和 ESP8266 在同一个 WiFi（iQOONeo 10）下
