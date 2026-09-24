@@ -19,8 +19,8 @@
 #include <Adafruit_SSD1306.h>
 
 /* ===== WiFi 配置（改成你的）===== */
-const char* WIFI_SSID = "YOUR_SSID";
-const char* WIFI_PASS = "YOUR_PASSWORD";
+const char* WIFI_SSID = "IQOONeo 10";
+const char* WIFI_PASS = "147963Zxcvbnm.";
 
 /* ===== 固件常量（对齐 1.txt）===== */
 #define SCREEN_WIDTH 128
