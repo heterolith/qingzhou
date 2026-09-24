@@ -1,0 +1,150 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET   -1
+#define OLED_ADDR    0x3C
+
+#define TRIG_PIN 14  // D5
+#define ECHO_PIN 12  // D6
+
+#define MAX_DISTANCE 400.0
+#define TMP_THRESHOLD 15.0  // 小于这个值就闪烁
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+void printCentered(const String &text, int y, int textSize) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.setTextSize(textSize);
+  display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  int x = (SCREEN_WIDTH - w) / 2 - x1;
+  display.setCursor(x, y);
+  display.print(text);
+}
+
+float measureOnce() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH, 25000);
+  if (duration == 0) return -1;
+  return duration * 0.0343 / 2.0;
+}
+
+float measureMedian() {
+  float a = measureOnce(); delay(15);
+  float b = measureOnce(); delay(15);
+  float c = measureOnce();
+
+  if (a > b) { float t = a; a = b; b = t; }
+  if (b > c) { float t = b; b = c; c = t; }
+  if (a > b) { float t = a; a = b; b = t; }
+  return b;
+}
+
+void drawHeader() {
+  printCentered("DISTANCE", 0, 1);
+}
+
+// 测不到：显示 Invalid
+void showInvalid() {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  drawHeader();
+  printCentered("Invalid", 22, 2);
+  display.display();
+  delay(200);
+}
+
+// 小于 15cm：TMP 闪烁，越近越快
+void showTmp(float d) {
+  // 距离 0cm -> 60ms 间隔，15cm -> 500ms 间隔
+  int interval = map((int)d, 0, (int)TMP_THRESHOLD, 60, 500);
+  if (interval < 60) interval = 60;
+  if (interval > 500) interval = 500;
+
+  // 显示阶段
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  drawHeader();
+  printCentered("TMP", 14, 4);
+  printCentered("CM", 46, 1);
+  display.display();
+  delay(interval);
+
+  // 空白阶段
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  drawHeader();
+  display.display();
+  delay(interval);
+}
+
+// 正常：显示数值 + 进度条
+void showNormal(float d) {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  drawHeader();
+
+  printCentered(String((int)d), 12, 4);
+  printCentered("CM", 46, 1);
+
+  int barX = 4, barY = 58, barW = 120, barH = 4;
+  display.drawRect(barX, barY, barW, barH, SSD1306_WHITE);
+
+  int fill = (int)((d / MAX_DISTANCE) * (barW - 4));
+  if (fill < 0) fill = 0;
+  if (fill > barW - 4) fill = barW - 4;
+  display.fillRect(barX + 2, barY + 2, fill, barH - 4, SSD1306_WHITE);
+
+  display.display();
+  delay(150);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  digitalWrite(TRIG_PIN, LOW);
+
+  Wire.begin(4, 5);  // SDA=GPIO4(D2), SCL=GPIO5(D1)
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
+      Serial.println("OLED init failed");
+      while (true) delay(1000);
+    }
+  }
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.display();
+  Serial.println("OLED ok");
+}
+
+void loop() {
+  float d = measureMedian();
+
+  if (d < 0 || d > MAX_DISTANCE) {
+    showInvalid();
+  } else if (d < TMP_THRESHOLD) {
+    showTmp(d);
+  } else {
+    showNormal(d);
+  }
+
+  Serial.print("d=");
+  if (d < 0) Serial.println("no echo");
+  else {
+    Serial.print(d);
+    Serial.println(" cm");
+  }
+}
