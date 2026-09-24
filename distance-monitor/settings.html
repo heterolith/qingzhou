@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f8f9fb">
+<title>设置 - 距离监测仪</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<body data-page="settings">
+
+  <header class="top-bar">
+    <a class="icon-btn left" href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h1><i class="fas fa-gear brand-icon"></i>设置</h1>
+    <button class="icon-btn right" id="placeholderBtn"><i class="fas fa-ellipsis-vertical"></i></button>
+  </header>
+
+  <main class="settings-content">
+
+    <!-- ===== 监测设置（固件核心参数）===== -->
+    <div class="group-title">监测设置 · 固件核心</div>
+
+    <!-- 安全阈值（TMP 阈值，对齐固件 TMP_THRESHOLD=15cm）-->
+    <div class="slider-block">
+      <div class="slider-header">
+        <span class="setting-title">安全阈值 (TMP)</span>
+        <span class="slider-value" id="thValue">15 cm</span>
+      </div>
+      <input type="range" id="thSlider" min="2" max="400" step="1">
+    </div>
+
+    <!-- ===== 传感器 ===== -->
+    <div class="group-title">传感器</div>
+
+    <!-- 双传感器模式（Web 增值）-->
+    <div class="setting-item">
+      <div class="setting-icon"><i class="fas fa-layer-group"></i></div>
+      <div class="setting-info">
+        <div class="setting-title">双传感器模式</div>
+        <div class="setting-sub">超声波与红外同时工作</div>
+      </div>
+      <button class="m3-switch" id="dualSwitch"></button>
+    </div>
+
+    <!-- 超声波（对齐固件 HC-SR04）-->
+    <div class="setting-item">
+      <div class="setting-icon"><i class="fas fa-tower-broadcast"></i></div>
+      <div class="setting-info">
+        <div class="setting-title">超声波传感器</div>
+        <div class="setting-sub" id="ultraSub">HC-SR04 · 量程 2cm-400cm</div>
+      </div>
+      <button class="m3-switch" id="ultraSwitch"></button>
+    </div>
+
+    <!-- 红外（Web 增值）-->
+    <div class="setting-item">
+      <div class="setting-icon"><i class="fas fa-satellite-dish"></i></div>
+      <div class="setting-info">
+        <div class="setting-title">红外探测器</div>
+        <div class="setting-sub" id="irSub">GP2Y0A21 · 量程 10-80cm</div>
+      </div>
+      <button class="m3-switch" id="irSwitch"></button>
+    </div>
+
+    <!-- 互斥模式提示 -->
+    <div class="warn-note" id="mutexNote" style="display:none">
+      <i class="fas fa-circle-info"></i>
+      <span>互斥模式下，开启一路传感器将自动关闭另一路。如需同时工作，请开启「双传感器模式」。</span>
+    </div>
+
+    <!-- ===== 报警方式（Web 增值）===== -->
+    <div class="group-title web-only">报警方式</div>
+
+    <!-- 报警灵敏度（Web 增值）-->
+    <div class="setting-item">
+      <div class="setting-icon"><i class="fas fa-gauge-high"></i></div>
+      <div class="setting-info">
+        <div class="setting-title">报警灵敏度</div>
+        <div class="setting-sub" id="sensSub">标准 · 连续 3 次越限触发</div>
+      </div>
+      <button class="m3-switch" id="sensSwitch"></button>
+    </div>
+
+    <!-- 震动（Web 增值）-->
+    <div class="setting-item">
+      <div class="setting-icon"><i class="fas fa-mobile-screen"></i></div>
+      <div class="setting-info">
+        <div class="setting-title">震动反馈</div>
+        <div class="setting-sub" id="vibSub">中 · 持续 500ms</div>
+      </div>
+      <button class="m3-switch" id="vibSwitch"></button>
+    </div>
+
+    <!-- 震动强度（震动开启才可用）-->
+    <div class="slider-block" id="vibBlock">
+      <div class="slider-header">
+        <span class="setting-title">震动强度</span>
+        <span class="slider-value" id="vibValue">中</span>
+      </div>
+      <input type="range" id="vibSlider" min="1" max="3" step="1">
+    </div>
+
+    <!-- 蜂鸣器（Web 增值）-->
+    <div class="setting-item">
+      <div class="setting-icon"><i class="fas fa-volume-high"></i></div>
+      <div class="setting-info">
+        <div class="setting-title">蜂鸣器</div>
+        <div class="setting-sub" id="buzSub">关闭 · 报警仅震动提醒</div>
+      </div>
+      <button class="m3-switch" id="buzSwitch"></button>
+    </div>
+
+    <!-- 蜂鸣音量（蜂鸣开启才可用）-->
+    <div class="slider-block" id="volBlock">
+      <div class="slider-header">
+        <span class="setting-title">蜂鸣音量</span>
+        <span class="slider-value" id="volValue">80%</span>
+      </div>
+      <input type="range" id="volSlider" min="0" max="100" step="5">
+    </div>
+
+    <!-- ===== 其他 ===== -->
+    <div class="group-title">其他</div>
+
+    <button class="danger-btn" id="resetBtn">
+      <i class="fas fa-rotate-left"></i>恢复默认设置
+    </button>
+
+  </main>
+
+  <!-- 恢复默认确认弹窗 -->
+  <div class="dialog-mask" id="resetDialog">
+    <div class="dialog">
+      <h3>恢复默认设置？</h3>
+      <p>所有设置（阈值、报警方式、传感器）将恢复为默认值，此操作不可撤销。</p>
+      <div class="dialog-actions">
+        <button class="btn-text" id="resetCancel">取消</button>
+        <button class="btn-filled" id="resetConfirm">恢复</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部导航 -->
+  <nav class="nav-bar">
+    <a class="nav-item" data-nav="control" href="index.html">
+      <div class="nav-icon-wrap"><i class="fas fa-sliders"></i></div><span>控制</span>
+    </a>
+    <a class="nav-item" data-nav="data" href="data.html">
+      <div class="nav-icon-wrap"><i class="fas fa-chart-line"></i></div><span>数据</span>
+    </a>
+    <a class="nav-item" data-nav="settings" href="settings.html">
+      <div class="nav-icon-wrap"><i class="fas fa-gear"></i></div><span>设置</span>
+    </a>
+  </nav>
+
+<script src="js/firmware.js"></script>
+<script src="js/common.js"></script>
+<script>
+/* ==========================================================
+   设置页专属逻辑（对齐固件版）
+   核心约定：所有修改只走 updateSetting()，UI 状态由本页
+   的 refreshUI() 从 loadSettings() 读回来渲染，保证所见即所存
+   阈值单位 cm，对齐固件 TMP_THRESHOLD
+   ========================================================== */
+const SENS_TEXT = { 1: '低 · 单次越限触发', 2: '标准 · 连续 3 次越限触发', 3: '高 · 实时触发' };
+const VIB_TEXT  = { 1: '弱 · 持续 200ms',  2: '中 · 持续 500ms',        3: '强 · 持续 1000ms' };
+
+/* ===== 滑块进度条着色（--fill 变量驱动 CSS 渐变）===== */
+function paintSlider(el, min, max) {
+  const pct = (el.value - min) / (max - min) * 100;
+  el.style.setProperty('--fill', pct + '%');
+}
+
+/* ===== 全量刷新：每次改动后调用，UI 永远反映最新存储值 ===== */
+function refreshUI() {
+  const s = loadSettings();   /* 注意：从存储重新读，而不是用旧引用 */
+
+  /* 阈值滑块（对齐固件 TMP_THRESHOLD，单位 cm）*/
+  const th = document.getElementById('thSlider');
+  th.value = s.threshold;
+  document.getElementById('thValue').textContent = s.threshold + ' cm';
+  paintSlider(th, +th.min, +th.max);
+
+  /* 灵敏度（用开关表示：标准=关，高=开；读回实际值显示文案）*/
+  document.getElementById('sensSub').textContent = SENS_TEXT[s.sensitivity];
+
+  /* 传感器三开关 */
+  document.getElementById('dualSwitch').classList.toggle('on', s.dualMode);
+  document.getElementById('ultraSwitch').classList.toggle('on', s.sensorOn);
+  document.getElementById('irSwitch').classList.toggle('on', s.irOn);
+
+  /* 互斥提示：仅在互斥模式（非双开）且至少一路开着时显示 */
+  document.getElementById('mutexNote').style.display =
+    (!s.dualMode && (s.sensorOn || s.irOn)) ? 'flex' : 'none';
+
+  /* 传感器副标题 */
+  document.getElementById('ultraSub').textContent = s.sensorOn ? 'HC-SR04 · 运行中' : 'HC-SR04 · 量程 2cm-400cm';
+  document.getElementById('irSub').textContent = s.irOn ? 'GP2Y0A21 · 运行中' : 'GP2Y0A21 · 量程 10-80cm';
+
+  /* 震动 */
+  document.getElementById('vibSwitch').classList.toggle('on', s.vibrate);
+  document.getElementById('vibSub').textContent =
+    s.vibrate ? VIB_TEXT[s.vibrateIntensity] : '已关闭';
+  const vb = document.getElementById('vibBlock');
+  vb.classList.toggle('disabled', !s.vibrate);
+  const vs = document.getElementById('vibSlider');
+  vs.value = s.vibrateIntensity;
+  document.getElementById('vibValue').textContent = ['弱', '中', '强'][s.vibrateIntensity - 1];
+  paintSlider(vs, 1, 3);
+
+  /* 蜂鸣器 */
+  document.getElementById('buzSwitch').classList.toggle('on', s.buzzerOn);
+  document.getElementById('buzSub').textContent =
+    s.buzzerOn ? `已开启 · 音量 ${s.volume}%` : '关闭 · 报警仅震动提醒';
+  const volB = document.getElementById('volBlock');
+  volB.classList.toggle('disabled', !s.buzzerOn);
+  const vos = document.getElementById('volSlider');
+  vos.value = s.volume;
+  document.getElementById('volValue').textContent = s.volume + '%';
+  paintSlider(vos, 0, 100);
+}
+
+/* ===== 开关通用绑定：点击 → updateSetting → refreshUI ===== */
+function bindSwitch(id, key, opts) {
+  document.getElementById(id).addEventListener('click', () => {
+    const s = loadSettings();
+    let val = !s[key];
+
+    /* 传感器互斥规则（页面层联动提示，规则本身由 common.js 保证）*/
+    if (opts && opts.mutex === 'ultra' && val) {
+      const cur = loadSettings();
+      if (!cur.dualMode) updateSetting('irOn', false);   /* 互斥：开超声关红外 */
+    }
+    if (opts && opts.mutex === 'ir' && val) {
+      const cur = loadSettings();
+      if (!cur.dualMode) updateSetting('sensorOn', false); /* 互斥：开红外关超声 */
+    }
+
+    updateSetting(key, val);
+    refreshUI();
+  });
+}
+
+bindSwitch('dualSwitch', 'dualMode');
+bindSwitch('ultraSwitch', 'sensorOn', { mutex: 'ultra' });
+bindSwitch('irSwitch', 'irOn', { mutex: 'ir' });
+bindSwitch('vibSwitch', 'vibrate');
+bindSwitch('buzSwitch', 'buzzerOn');
+
+/* ===== 灵敏度：开关切换 标准(2) ↔ 高(3) ===== */
+document.getElementById('sensSwitch').addEventListener('click', () => {
+  const s = loadSettings();
+  updateSetting('sensitivity', s.sensitivity === 3 ? 2 : 3);
+  refreshUI();
+});
+
+/* ===== 阈值滑块（对齐固件 TMP，单位 cm，拖动实时存）===== */
+document.getElementById('thSlider').addEventListener('input', e => {
+  updateSetting('threshold', +e.target.value);   /* 直接 cm */
+  document.getElementById('thValue').textContent = e.target.value + ' cm';
+  paintSlider(e.target, +e.target.min, +e.target.max);
+});
+
+/* ===== 震动强度滑块 ===== */
+document.getElementById('vibSlider').addEventListener('input', e => {
+  const v = +e.target.value;
+  updateSetting('vibrateIntensity', v);
+  document.getElementById('vibValue').textContent = ['弱', '中', '强'][v - 1];
+  document.getElementById('vibSub').textContent = VIB_TEXT[v];
+  paintSlider(e.target, 1, 3);
+});
+
+/* ===== 蜂鸣音量滑块 ===== */
+document.getElementById('volSlider').addEventListener('input', e => {
+  updateSetting('volume', +e.target.value);
+  document.getElementById('volValue').textContent = e.target.value + '%';
+  document.getElementById('buzSub').textContent = `已开启 · 音量 ${e.target.value}%`;
+  paintSlider(e.target, 0, 100);
+});
+
+/* ===== 恢复默认：弹窗确认 → resetToDefaults() → 刷新 ===== */
+document.getElementById('resetBtn').addEventListener('click', () => {
+  document.getElementById('resetDialog').classList.add('show');
+});
+document.getElementById('resetCancel').addEventListener('click', () => {
+  document.getElementById('resetDialog').classList.remove('show');
+});
+document.getElementById('resetConfirm').addEventListener('click', () => {
+  resetToDefaults();
+  document.getElementById('resetDialog').classList.remove('show');
+  refreshUI();
+});
+
+/* ===== 初始化 ===== */
+refreshUI();
+</script>
+</body>
+</html>

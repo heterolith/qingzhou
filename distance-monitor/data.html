@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f8f9fb">
+<title>数据 - 距离监测仪</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<body data-page="data">
+
+  <header class="top-bar">
+    <a class="icon-btn left" href="index.html"><i class="fas fa-arrow-left"></i></a>
+    <h1><i class="fas fa-chart-line brand-icon"></i>数据</h1>
+    <a class="icon-btn right" href="settings.html"><i class="fas fa-gear color"></i></a>
+  </header>
+
+  <main class="data-content">
+
+    <!-- 时间范围选择 -->
+    <div class="range-row" id="rangeRow">
+      <button class="chip" data-range="1">1 小时</button>
+      <button class="chip selected" data-range="24">24 小时</button>
+      <button class="chip" data-range="168">7 天</button>
+    </div>
+
+    <!-- 实时摘要卡 -->
+    <div class="live-card">
+      <div class="live-icon" id="liveIcon"><i class="fas fa-tower-broadcast"></i></div>
+      <div class="live-info">
+        <div class="live-title" id="liveTitle">实时距离 · 超声波传感器</div>
+        <div class="live-value"><span id="liveDist">50</span> cm</div>
+      </div>
+      <div class="live-badge" id="liveBadge">正常</div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+      <div class="stat-card ok">
+        <i class="fas fa-arrow-down"></i>
+        <div class="stat-num" id="statMin">8</div>
+        <div class="stat-label">最小距离 cm</div>
+      </div>
+      <div class="stat-card">
+        <i class="fas fa-arrow-up"></i>
+        <div class="stat-num" id="statMax">312</div>
+        <div class="stat-label">最大距离 cm</div>
+      </div>
+      <div class="stat-card error">
+        <i class="fas fa-triangle-exclamation"></i>
+        <div class="stat-num" id="statAlarms">5</div>
+        <div class="stat-label">越限次数</div>
+      </div>
+    </div>
+
+    <!-- 历史曲线 -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <i class="fas fa-chart-line"></i>距离历史
+        <div class="legend">
+          <span class="legend-dot"></span>距离
+          <span class="legend-dot err"></span>越限
+        </div>
+      </div>
+      <canvas id="historyChart"></canvas>
+    </div>
+
+    <!-- 报警记录 -->
+    <div class="log-card">
+      <div class="log-header">
+        <i class="fas fa-clipboard-list"></i>报警记录
+        <span class="badge" id="logCount">3 条</span>
+      </div>
+      <div class="log-list" id="logList"></div>
+    </div>
+
+  </main>
+
+  <!-- 底部导航 -->
+  <nav class="nav-bar">
+    <a class="nav-item" data-nav="control" href="index.html">
+      <div class="nav-icon-wrap"><i class="fas fa-sliders"></i></div><span>控制</span>
+    </a>
+    <a class="nav-item" data-nav="data" href="data.html">
+      <div class="nav-icon-wrap"><i class="fas fa-chart-line"></i></div><span>数据</span>
+    </a>
+    <a class="nav-item" data-nav="settings" href="settings.html">
+      <div class="nav-icon-wrap"><i class="fas fa-gear"></i></div><span>设置</span>
+    </a>
+  </nav>
+
+<script src="js/firmware.js"></script>
+<script src="js/common.js"></script>
+<script>
+/* ==========================================================
+   数据页专属逻辑（对齐固件版）
+   实时距离：measureMedian()（与控制页同款固件逻辑）
+   历史数据：量程对齐固件 400cm，TMP 阈值联动 settings.threshold
+   ========================================================== */
+const settings = loadSettings();
+let currentDistance = 50;
+
+/* ===== 实时摘要卡：传感器名 + 状态徽章 ===== */
+function refreshLiveCard() {
+  const info = getSensorInfo(settings);
+  document.getElementById('liveIcon').innerHTML = `<i class="fas ${info.icon}"></i>`;
+  document.getElementById('liveTitle').textContent = `实时距离 · ${info.name}`;
+
+  const d = currentDistance;
+  const state = getDistanceState(d);
+  document.getElementById('liveDist').textContent = d >= 0 ? d.toFixed(1) : '--';
+
+  const badge = document.getElementById('liveBadge');
+  if (state === 'invalid') {
+    badge.textContent = '无效'; badge.style.background = 'var(--surface-variant)'; badge.style.color = 'var(--on-surface-variant)';
+  } else {
+    const alarm = isAlarm(d, settings);
+    badge.textContent = alarm ? '报警中' : '正常';
+    badge.style.background = alarm ? 'var(--error-container)' : 'var(--surface)';
+    badge.style.color = alarm ? 'var(--error)' : 'var(--primary)';
+  }
+}
+
+/* ===== 模拟实时距离（用固件同款 measureMedian）===== */
+setInterval(() => {
+  if (!settings.sensorOn && !settings.irOn) return;
+  currentDistance = measureMedian();   /* 固件同款：三次取中值 */
+  refreshLiveCard();
+  drawChart();   /* 实时点跟着动 */
+}, 1000);
+
+/* ===== 生成模拟历史数据（量程对齐固件 400cm）===== */
+function genHistory(n, stepSec) {
+  const data = []; const now = Date.now();
+  for (let i = n - 1; i >= 0; i--) {
+    const base = 180 + 120 * Math.sin(i / n * Math.PI * 2);   /* 60~300cm 波动 */
+    const noise = (Math.random() - 0.5) * 8;                  /* ±4cm 噪声 */
+    let v = base + noise;
+    if (i % 73 === 0) v = 5 + Math.random() * 9;               /* 模拟越限（<15cm TMP）*/
+    data.push({ t: now - i * stepSec * 1000, v: Math.max(1, Math.min(v, MAX_RANGE)) });
+  }
+  return data;
+}
+
+const historySets = {
+  1:   genHistory(60, 60),      /* 1 小时 */
+  24:  genHistory(120, 720),    /* 24 小时 */
+  168: genHistory(120, 5040)    /* 7 天 */
+};
+let curRange = 24;
+
+/* ===== 统计卡片 ===== */
+function updateStats() {
+  const vs = historySets[curRange].map(p => p.v);
+  document.getElementById('statMin').textContent = Math.min(...vs).toFixed(0);
+  document.getElementById('statMax').textContent = Math.max(...vs).toFixed(0);
+  document.getElementById('statAlarms').textContent =
+    vs.filter(v => isAlarm(v, settings)).length;
+}
+
+/* ===== Canvas 历史曲线（量程对齐 400cm）===== */
+function drawChart() {
+  const canvas = document.getElementById('historyChart');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w) return;   /* canvas 不可见时不画 */
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  const data = historySets[curRange];
+  const padL = 6, padR = 6, padT = 8, padB = 18;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const x = i => padL + i / (data.length - 1) * cw;
+  const y = v => padT + (1 - v / MAX_RANGE) * ch;
+
+  /* TMP 阈值虚线（读取当前设置，对齐固件 TMP_THRESHOLD）*/
+  ctx.strokeStyle = '#ba1a1a';
+  ctx.globalAlpha = 0.5; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(padL, y(settings.threshold)); ctx.lineTo(w - padR, y(settings.threshold)); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+  /* 曲线下渐变填充 */
+  const grad = ctx.createLinearGradient(0, padT, 0, h);
+  grad.addColorStop(0, 'rgba(0,99,155,0.25)');
+  grad.addColorStop(1, 'rgba(0,99,155,0)');
+  ctx.beginPath();
+  data.forEach((p, i) => i === 0 ? ctx.moveTo(x(i), y(p.v)) : ctx.lineTo(x(i), y(p.v)));
+  ctx.lineTo(w - padR, y(0)); ctx.lineTo(padL, y(0)); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  /* 曲线主体（越限段红色）*/
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (let i = 1; i < data.length; i++) {
+    ctx.strokeStyle = isAlarm(data[i].v, settings) ? '#ba1a1a' : '#00639b';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(x(i - 1), y(data[i - 1].v));
+    ctx.lineTo(x(i), y(data[i].v));
+    ctx.stroke();
+  }
+
+  /* 实时点 */
+  if (currentDistance >= 0) {
+    ctx.fillStyle = isAlarm(currentDistance, settings) ? '#ba1a1a' : '#00639b';
+    ctx.beginPath(); ctx.arc(x(data.length - 1), y(currentDistance), 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#f8f9fb'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  /* X 轴时间标签 */
+  ctx.fillStyle = '#42474e'; ctx.font = '10px Roboto, sans-serif'; ctx.textAlign = 'center';
+  const fmt = t => {
+    const d = new Date(t);
+    return curRange === 1 ? `${d.getMinutes()}分`
+         : curRange === 24 ? `${d.getHours()}:00`
+         : `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+  [0, Math.floor(data.length / 2), data.length - 1].forEach(i => {
+    ctx.fillText(fmt(data[i].t), Math.min(Math.max(x(i), 16), w - 16), h - 4);
+  });
+}
+
+window.addEventListener('resize', drawChart);
+
+/* ===== 时间范围 Chip 切换 ===== */
+document.querySelectorAll('#rangeRow .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#rangeRow .chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    curRange = +chip.dataset.range;
+    updateStats(); drawChart();
+  });
+});
+
+/* ===== 报警记录（文案用公共函数，与设置联动）===== */
+const alarmMethod = getAlarmMethodName(settings);
+const logs = [
+  { icon: 'fa-triangle-exclamation', title: '距离低于安全阈值', sub: `实测 12 cm · ${alarmMethod}`, time: '14:32', recovered: false },
+  { icon: 'fa-rotate-left', title: '恢复正常', sub: '回到 85 cm · 报警解除', time: '14:33', recovered: true },
+  { icon: 'fa-triangle-exclamation', title: '距离低于安全阈值', sub: `实测 9 cm · ${alarmMethod}`, time: '09:15', recovered: false },
+  { icon: 'fa-rotate-left', title: '恢复正常', sub: '回到 120 cm · 报警解除', time: '09:18', recovered: true },
+  { icon: 'fa-triangle-exclamation', title: '距离低于安全阈值', sub: `实测 6 cm · ${alarmMethod}`, time: '昨天 22:47', recovered: false }
+];
+function renderLogs() {
+  document.getElementById('logList').innerHTML = logs.map(l => `
+    <div class="log-item ${l.recovered ? 'recovered' : ''}">
+      <div class="log-icon"><i class="fas ${l.icon}"></i></div>
+      <div class="log-info">
+        <div class="log-title">${l.title}</div>
+        <div class="log-sub">${l.sub}</div>
+      </div>
+      <div class="log-time">${l.time}</div>
+    </div>`).join('');
+  document.getElementById('logCount').textContent =
+    logs.filter(l => !l.recovered).length + ' 条报警';
+}
+
+/* ===== 初始化 ===== */
+refreshLiveCard();
+updateStats();
+renderLogs();
+drawChart();
+</script>
+</body>
+</html>
