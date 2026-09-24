@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f8f9fb">
+<title>距离监测仪</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="css/common.css">
+</head>
+<!-- data-page 供 common.js 的 highlightNav() 识别当前页 -->
+<body data-page="control">
+
+  <header class="top-bar">
+    <button class="icon-btn left"><i class="fas fa-bars"></i></button>
+    <h1><i class="fas fa-ruler-combined brand-icon"></i>距离监测仪</h1>
+    <a class="icon-btn right" href="settings.html"><i class="fas fa-gear color"></i></a>
+  </header>
+
+  <main class="content">
+
+    <!-- 传感器指示徽章 -->
+    <div class="sensor-badge active" id="sensorBadge">
+      <i class="fas fa-tower-broadcast"></i>
+      <span>超声波传感器</span>
+    </div>
+
+    <!-- 状态标题 -->
+    <div class="headline ok" id="headline">
+      <i class="fas fa-circle-check" id="headlineIcon"></i>
+      <span id="headlineText">监测中 · 距离正常</span>
+    </div>
+
+    <!-- 大数字读数 -->
+    <div class="readout">
+      <span class="distance-value" id="distVal">1.24</span>
+      <span class="distance-unit">m</span>
+    </div>
+
+    <!-- 量程胶囊条 -->
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="capsule-track">
+        <div class="capsule-fill" id="distBar" style="width:50%"></div>
+        <div class="threshold-tick" id="thresholdTick"></div>
+      </div>
+      <div class="capsule-labels"><span>0</span><span id="thLabel">阈值 0.5m</span><span>2.5m</span></div>
+    </div>
+
+    <!-- 三状态卡 -->
+    <section class="status-row">
+      <div class="status-card alarm-ok" id="alarmCard">
+        <div class="status-icon"><i class="fas fa-circle-check" id="alarmIcon"></i></div>
+        <div class="status-title">报警状态</div>
+        <div class="status-desc" id="alarmDesc">距离正常</div>
+      </div>
+      <div class="status-card buzzer-off" id="buzzerCard">
+        <div class="status-icon"><i class="fas fa-volume-xmark" id="buzzerIcon"></i></div>
+        <div class="status-title">蜂鸣器</div>
+        <div class="status-desc" id="buzzerDesc">已静音</div>
+      </div>
+      <div class="status-card vibrate-on" id="vibrateCard">
+        <div class="status-icon"><i class="fas fa-mobile-screen" id="vibrateIcon"></i></div>
+        <div class="status-title">震动反馈</div>
+        <div class="status-desc" id="vibrateDesc">已启用</div>
+      </div>
+    </section>
+
+    <!-- 操作按钮 -->
+    <div class="page-actions">
+      <button class="action-btn secondary" id="testBtn"><i class="fas fa-bullhorn"></i>测试蜂鸣</button>
+      <button class="action-btn secondary" id="testVibBtn"><i class="fas fa-mobile-screen"></i>测试震动</button>
+    </div>
+
+  </main>
+
+  <!-- 底部导航：分文件后用 <a> 跳转，data-nav 供高亮 -->
+  <nav class="nav-bar">
+    <a class="nav-item" data-nav="control" href="index.html">
+      <div class="nav-icon-wrap"><i class="fas fa-sliders"></i></div><span>控制</span>
+    </a>
+    <a class="nav-item" data-nav="data" href="data.html">
+      <div class="nav-icon-wrap"><i class="fas fa-chart-line"></i></div><span>数据</span>
+    </a>
+    <a class="nav-item" data-nav="settings" href="settings.html">
+      <div class="nav-icon-wrap"><i class="fas fa-gear"></i></div><span>设置</span>
+    </a>
+  </nav>
+
+<script src="js/common.js"></script>
+<script>
+/* ==========================================================
+   主页专属逻辑
+   设置读取走 loadSettings()，展示元素用 getSensorInfo() 等公共函数
+   ========================================================== */
+const settings = loadSettings();
+let currentDistance = 1.24;
+
+/* ===== 传感器徽章（用公共函数，保证与数据页口径一致） ===== */
+function refreshSensorBadge() {
+  const badge = document.getElementById('sensorBadge');
+  const info = getSensorInfo(settings);
+  badge.innerHTML = `<i class="fas ${info.icon}"></i><span>${info.name}</span>`;
+  badge.classList.toggle('active', !info.off);
+}
+refreshSensorBadge();
+
+/* ===== 静态元素按设置初始化（阈值刻度等） ===== */
+function refreshThresholdUI() {
+  document.getElementById('thresholdTick').style.left =
+    settings.threshold / MAX_RANGE * 100 + '%';
+  document.getElementById('thLabel').textContent = `阈值 ${settings.threshold}m`;
+}
+refreshThresholdUI();
+
+/* ===== 全量刷新（模拟实时监测，每秒一次） ===== */
+function tick() {
+  let d;
+  if (settings.sensorOn) {
+    d = Math.random() * 2.2 + 0.3;
+    if (Math.random() < 0.1) d = 0.3 + Math.random() * 0.2;  // 10% 概率接近
+  } else if (settings.irOn) {
+    d = Math.random() * 2 + 0.4;
+  } else {
+    return;  // 传感器全关，不更新
+  }
+  currentDistance = d;
+  document.getElementById('distVal').textContent = d.toFixed(2);
+
+  document.getElementById('distBar').style.width =
+    Math.max(Math.min(d / MAX_RANGE * 100, 100), 1) + '%';
+
+  const alarm = isAlarm(d, settings);
+  document.getElementById('distVal').classList.toggle('alarm', alarm);
+  document.getElementById('distBar').classList.toggle('alarm', alarm);
+
+  const hl = document.getElementById('headline');
+  hl.className = 'headline ' + (alarm ? 'bad' : 'ok');
+  document.getElementById('headlineIcon').className =
+    'fas ' + (alarm ? 'fa-triangle-exclamation' : 'fa-circle-check');
+  document.getElementById('headlineText').textContent =
+    alarm ? '警告 · 低于安全阈值' : '监测中 · 距离正常';
+
+  document.getElementById('alarmCard').className =
+    'status-card ' + (alarm ? 'alarm-active' : 'alarm-ok');
+  document.getElementById('alarmIcon').className =
+    'fas ' + (alarm ? 'fa-triangle-exclamation' : 'fa-circle-check');
+  document.getElementById('alarmDesc').textContent = alarm ? '低于安全阈值' : '距离正常';
+
+  const bCard = document.getElementById('buzzerCard');
+  const bIcon = document.getElementById('buzzerIcon');
+  const bDesc = document.getElementById('buzzerDesc');
+  if (settings.buzzerOn) {
+    bCard.className = 'status-card buzzer-on';
+    bIcon.className = 'fas fa-volume-high';
+    bDesc.textContent = alarm ? '蜂鸣中…' : '已启用';
+  } else {
+    bCard.className = 'status-card buzzer-off';
+    bIcon.className = 'fas fa-volume-xmark';
+    bDesc.textContent = '已静音';
+  }
+
+  const vCard = document.getElementById('vibrateCard');
+  const vDesc = document.getElementById('vibrateDesc');
+  if (settings.vibrate) {
+    vCard.className = 'status-card vibrate-on';
+    vDesc.textContent = alarm ? '震动中…' : '已启用';
+  } else {
+    vCard.className = 'status-card vibrate-off';
+    vDesc.textContent = '已禁用';
+  }
+}
+setInterval(tick, 1000);
+tick();  // 立即执行一次，避免首秒空白
+
+/* ===== 测试蜂鸣 ===== */
+document.getElementById('testBtn').addEventListener('click', () => {
+  const d = document.getElementById('buzzerDesc');
+  d.textContent = settings.buzzerOn ? '测试蜂鸣…' : '蜂鸣器已关闭';
+  setTimeout(() => { d.textContent = settings.buzzerOn ? '已启用' : '已静音'; }, 800);
+});
+
+/* ===== 测试震动 ===== */
+document.getElementById('testVibBtn').addEventListener('click', () => {
+  const d = document.getElementById('vibrateDesc');
+  if (settings.vibrate) {
+    d.textContent = '测试震动…';
+    if (navigator.vibrate) navigator.vibrate(200);
+    setTimeout(() => { d.textContent = '已启用'; }, 800);
+  } else {
+    d.textContent = '震动已关闭';
+    setTimeout(() => { d.textContent = '已禁用'; }, 800);
+  }
+});
+</script>
+</body>
+</html>
