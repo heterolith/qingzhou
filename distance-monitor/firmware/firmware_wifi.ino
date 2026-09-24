@@ -184,7 +184,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 /* ==========================================================
    广播测距数据给所有客户端（或指定客户端）
    ========================================================== */
-void broadcastData(uint8_t except = 255) {
+void broadcastData(uint8_t except) {
   static float lastD = -999;
   float d = measureMedian();
 
