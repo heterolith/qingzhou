@@ -21,10 +21,11 @@
 #define CHAR_H     24
 #define CHAR_BYTES (CHAR_W * CHAR_H / 8)   // 72
 
-// MAX7219 引脚（若不用 MAX7219，忽略下面驱动区）
-#define PIN_DIN  D7
-#define PIN_CLK  D5
-#define PIN_CS   D8
+// MAX7219 引脚（直接用 GPIO 编号，不依赖 Dx 别名，兼容所有板卡）
+// NodeMCU 对应: D7=GPIO13, D5=GPIO14, D8=GPIO15
+#define PIN_DIN  13
+#define PIN_CLK  14
+#define PIN_CS   15
 #define MAX7219_CHAIN  9   // 级联模块数: 24x24 = 3x3 = 9 块 8x8
 
 // ===================== 帧缓冲 =====================
