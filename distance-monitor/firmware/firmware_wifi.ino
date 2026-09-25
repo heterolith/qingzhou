@@ -1,61 +1,80 @@
 /* ==========================================================
-   firmware_wifi.ino — 距离监测仪 WiFi 联机版固件
-   基于 1.txt 扩展：保留 HC-SR04 + OLED + 三态显示
-   新增：WiFi 连接 + WebSocket 服务
-   通信协议（JSON）：
-     固件 → 网页：{type:"data", distance:50.2, state:"normal"}
-     网页 → 固件：{type:"set", threshold:20}
+   firmware_wifi.ino — 距离监测仪 WiFi 联机版固件（中文版）
+   OLED 显示全部中文：
+     - 启动：网络名称 + WiFi 名
+     - 正常测距：距离数字 + 底部进度条（越近越满）
+     - 小于15cm：过近警告，距离越近闪烁越快
+     - 测不到：无效
    依赖库（Arduino IDE 库管理器安装）：
      - ESP8266 board package
-     - Adafruit_GFX / Adafruit_SSD1306（OLED 驱动）
+     - U8g2（OLED 驱动，支持中文字体）
      - Links2004/arduinoWebSockets（WebSocket 服务端）
+     - ArduinoJson
    ========================================================== */
 
 #include <ESP8266WiFi.h>
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
+#include <U8g2lib.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 
-/* ===== WiFi 配置（改成你的）===== */
+/* ===== WiFi 配置 ===== */
 const char* WIFI_SSID = "iQOONeo 10";
 const char* WIFI_PASS = "147963Zxcvbnm.";
 
-/* ===== 固件常量（对齐 1.txt）===== */
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET   -1
-#define OLED_ADDR    0x3C
-
+/* ===== 引脚与常量 ===== */
 #define TRIG_PIN 14  // D5
 #define ECHO_PIN 12  // D6
 
 #define MAX_DISTANCE 400.0
-#define TMP_THRESHOLD_DEFAULT 15.0  // 默认 TMP 阈值，可被网页修改
+#define TMP_THRESHOLD 15.0   // 小于此值触发"过近警告"
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-WebSocketsServer webSocket(81);  // WebSocket 端口 81
+/* ===== OLED 128x64 I2C：SDA=GPIO4(D2), SCL=GPIO5(D1) ===== */
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 5, 4);
 
-/* ===== 运行时可调参数（网页可改）===== */
-float tmpThreshold = TMP_THRESHOLD_DEFAULT;
+/* ===== WebSocket ===== */
+WebSocketsServer webSocket(81);
 
-/* ===== 上次广播时间（避免刷屏，每秒一次）===== */
+/* ===== 运行时参数（网页可改阈值）===== */
+float tmpThreshold = TMP_THRESHOLD;
+
+/* ===== 计时器 ===== */
 unsigned long lastBroadcast = 0;
+unsigned long lastWifiShow = 0;
+
+/* ===== 状态 ===== */
+bool wifiConnected = false;
+bool wsStarted = false;
 
 /* ==========================================================
-   OLED 显示函数（与 1.txt 完全一致，保持不变）
+   工具：画进度条（越近越满）
    ========================================================== */
-void printCentered(const String &text, int y, int textSize) {
-  int16_t x1, y1;
-  uint16_t w, h;
-  display.setTextSize(textSize);
-  display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-  int x = (SCREEN_WIDTH - w) / 2 - x1;
-  display.setCursor(x, y);
-  display.print(text);
+void drawProgressBar(float d) {
+  int barX = 4, barY = 56, barW = 120, barH = 6;
+  u8g2.drawFrame(barX, barY, barW, barH);
+
+  if (d < 0) d = 0;
+  if (d > MAX_DISTANCE) d = MAX_DISTANCE;
+
+  // 越近越满：d=0 → 满，d=MAX → 空
+  int fill = (int)((1.0 - d / MAX_DISTANCE) * (barW - 4));
+  if (fill < 0) fill = 0;
+  if (fill > barW - 4) fill = barW - 4;
+  u8g2.drawBox(barX + 2, barY + 2, fill, barH - 4);
 }
 
+/* ==========================================================
+   工具：居中绘制字符串
+   ========================================================== */
+void drawCentered(const char* text, int y) {
+  int w = u8g2.getStrWidth(text);
+  int x = (128 - w) / 2;
+  u8g2.drawStr(x, y, text);
+}
+
+/* ==========================================================
+   测距（三次取中值，与 1.txt 一致）
+   ========================================================== */
 float measureOnce() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -79,64 +98,102 @@ float measureMedian() {
   return b;
 }
 
-void drawHeader() {
-  printCentered("DISTANCE", 0, 1);
-}
-
+/* ==========================================================
+   显示：无效（测不到 / 超量程）
+   ========================================================== */
 void showInvalid() {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  drawHeader();
-  printCentered("Invalid", 22, 2);
-  display.display();
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered("无效", 32);
+  drawProgressBar(MAX_DISTANCE);  // 无效时空条
+  u8g2.sendBuffer();
   delay(200);
 }
 
+/* ==========================================================
+   显示：过近警告（< tmpThreshold）
+   距离越近，闪烁间隔越短（0cm→60ms，15cm→500ms）
+   ========================================================== */
 void showTmp(float d) {
   int interval = map((int)d, 0, (int)tmpThreshold, 60, 500);
   if (interval < 60) interval = 60;
   if (interval > 500) interval = 500;
 
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  drawHeader();
-  printCentered("TMP", 14, 4);
-  printCentered("CM", 46, 1);
-  display.display();
+  String distStr = String((int)d) + " cm";
+
+  // 亮屏
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered("过近警告", 20);
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered(distStr.c_str(), 42);
+  drawProgressBar(d);
+  u8g2.sendBuffer();
   delay(interval);
 
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  drawHeader();
-  display.display();
+  // 灭屏（闪烁）
+  u8g2.clearBuffer();
+  u8g2.sendBuffer();
   delay(interval);
 }
 
+/* ==========================================================
+   显示：正常测距（≥ tmpThreshold）
+   ========================================================== */
 void showNormal(float d) {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  drawHeader();
+  String distStr = String((int)d) + " cm";
 
-  printCentered(String((int)d), 12, 4);
-  printCentered("CM", 46, 1);
-
-  int barX = 4, barY = 58, barW = 120, barH = 4;
-  display.drawRect(barX, barY, barW, barH, SSD1306_WHITE);
-
-  int fill = (int)((d / MAX_DISTANCE) * (barW - 4));
-  if (fill < 0) fill = 0;
-  if (fill > barW - 4) fill = barW - 4;
-  display.fillRect(barX + 2, barY + 2, fill, barH - 4, SSD1306_WHITE);
-
-  display.display();
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered("距离", 18);
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered(distStr.c_str(), 40);
+  drawProgressBar(d);
+  u8g2.sendBuffer();
   delay(150);
 }
 
-/* ===== 前向声明（C++ 要求函数定义前可见）===== */
+/* ==========================================================
+   显示：连接中（网络名称 + WiFi 名 + 动画）
+   ========================================================== */
+void showConnecting() {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered("网络名称", 14);
+
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered(WIFI_SSID, 32);
+
+  // 动画点
+  int dots = (millis() / 400) % 4;
+  String dotsStr = "";
+  for (int i = 0; i < dots; i++) dotsStr += ".";
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered(dotsStr.c_str(), 50);
+
+  u8g2.sendBuffer();
+}
+
+/* ==========================================================
+   显示：连接成功（IP + 端口，2.5秒）
+   ========================================================== */
+void showWiFiOK() {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered("连接成功", 14);
+
+  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+  drawCentered(WiFi.localIP().toString().c_str(), 32);
+  drawCentered(":81", 48);
+
+  u8g2.sendBuffer();
+}
+
+/* ===== 前向声明 ===== */
 void broadcastData(uint8_t except = 255);
 
 /* ==========================================================
-   状态判断（与网页 firmware.js getDistanceState 对齐）
+   状态判断
    ========================================================== */
 String getDistanceState(float d) {
   if (d < 0 || d > MAX_DISTANCE) return "invalid";
@@ -145,7 +202,7 @@ String getDistanceState(float d) {
 }
 
 /* ==========================================================
-   WebSocket 事件处理：接收网页指令
+   WebSocket 事件处理
    ========================================================== */
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
@@ -154,11 +211,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
       break;
     case WStype_CONNECTED:
       Serial.printf("[%u] 网页已连接\n", num);
-      // 立即推送当前状态
       broadcastData(num);
       break;
     case WStype_TEXT: {
-      // 解析 JSON 指令
       StaticJsonDocument<200> doc;
       DeserializationError err = deserializeJson(doc, payload, length);
       if (err) {
@@ -172,7 +227,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
           Serial.printf("阈值已更新: %.1f cm\n", tmpThreshold);
         }
       } else if (type == "ping") {
-        // 心跳响应
         webSocket.sendTXT(num, "{\"type\":\"pong\"}");
       }
       break;
@@ -182,16 +236,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 }
 
 /* ==========================================================
-   广播测距数据给所有客户端（或指定客户端）
+   广播测距数据
    ========================================================== */
 void broadcastData(uint8_t except) {
-  static float lastD = -999;
   float d = measureMedian();
-
-  // 状态判断
   String state = getDistanceState(d);
 
-  // 构建 JSON
   StaticJsonDocument<128> doc;
   doc["type"] = "data";
   doc["distance"] = d;
@@ -201,11 +251,9 @@ void broadcastData(uint8_t except) {
 
   String json;
   serializeJson(doc, json);
-
-  // 广播给所有客户端
   webSocket.broadcastTXT(json);
 
-  // OLED 显示（保留固件原三态逻辑）
+  // OLED 显示
   if (d < 0 || d > MAX_DISTANCE) {
     showInvalid();
   } else if (d < tmpThreshold) {
@@ -214,47 +262,10 @@ void broadcastData(uint8_t except) {
     showNormal(d);
   }
 
-  // 串口日志（保留 1.txt 格式）
+  // 串口日志
   Serial.print("d=");
   if (d < 0) Serial.println("no echo");
   else { Serial.print(d); Serial.println(" cm"); }
-}
-
-/* ===== WiFi 连接状态 ===== */
-bool wifiConnected = false;
-bool wsStarted = false;
-unsigned long lastWifiShow = 0;
-
-/* ===== OLED 显示连接中界面 ===== */
-void showConnecting() {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  printCentered("CONNECTING", 6, 1);
-
-  // 显示 WiFi 名（可能太长会截断，用小字）
-  display.setTextSize(1);
-  display.setCursor(0, 22);
-  display.print("WiFi:");
-  display.setCursor(0, 34);
-  display.print(WIFI_SSID);
-
-  // 动画点
-  int dots = (millis() / 400) % 4;
-  String dotsStr = "";
-  for (int i = 0; i < dots; i++) dotsStr += ".";
-  printCentered(dotsStr, 50, 2);
-
-  display.display();
-}
-
-/* ===== OLED 显示连接成功界面（显示2.5秒后切测距）===== */
-void showWiFiOK() {
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  printCentered("WiFi OK", 4, 2);
-  printCentered(WiFi.localIP().toString(), 30, 1);
-  printCentered(":81", 44, 1);
-  display.display();
 }
 
 /* ==========================================================
@@ -269,32 +280,21 @@ void setup() {
   digitalWrite(TRIG_PIN, LOW);
 
   Wire.begin(4, 5);  // SDA=GPIO4(D2), SCL=GPIO5(D1)
+  u8g2.begin();
+  u8g2.enableUTF8Print();
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
-      Serial.println("OLED init failed");
-      while (true) delay(1000);
-    }
-  }
-
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.display();
   Serial.println("OLED ok");
-
-  // WiFi 开始连接（非阻塞，不等结果）
   Serial.printf("连接 WiFi: %s\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-  // 立即显示连接中界面
   showConnecting();
 }
 
 /* ==========================================================
-   loop：非阻塞 WiFi 连接 + WebSocket 维护 + 每秒测距广播
+   loop
    ========================================================== */
 void loop() {
-  // === 阶段1：WiFi 未连上 ===
+  // 阶段1：WiFi 未连上
   if (!wifiConnected) {
     if (WiFi.status() == WL_CONNECTED) {
       wifiConnected = true;
@@ -302,32 +302,29 @@ void loop() {
       Serial.print("WiFi 已连接，IP: ");
       Serial.println(WiFi.localIP());
 
-      // 启动 WebSocket
       webSocket.begin();
       webSocket.onEvent(webSocketEvent);
       wsStarted = true;
       Serial.println("WebSocket 服务已启动 (端口 81)");
 
-      // OLED 显示 IP（持续2.5秒）
       showWiFiOK();
-      lastBroadcast = millis();  // 重置计时器
+      lastBroadcast = millis();
       delay(2500);
     } else {
-      // 持续显示连接中（每400ms刷新动画）
       if (millis() - lastWifiShow > 350) {
         lastWifiShow = millis();
         showConnecting();
         Serial.print(".");
       }
     }
-    return;  // WiFi 没连上时不进入测距
+    return;
   }
 
-  // === 阶段2：WiFi 已连，正常测距 ===
+  // 阶段2：正常测距
   if (wsStarted) webSocket.loop();
 
   unsigned long now = millis();
-  if (now - lastBroadcast >= 1000) {  // 每秒一次（与网页 setInterval 一致）
+  if (now - lastBroadcast >= 1000) {
     lastBroadcast = now;
     broadcastData();
   }
