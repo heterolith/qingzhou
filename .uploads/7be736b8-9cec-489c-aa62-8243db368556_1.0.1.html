@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>字模管理器</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root {
+  --primary: #4f5b92;
+  --on-primary: #fff;
+  --primary-container: #dee0ff;
+  --on-primary-container: #00105c;
+  --surface: #fbf8ff;
+  --surface-variant: #e3e1ec;
+  --on-surface: #1b1b21;
+  --on-surface-variant: #45464f;
+  --error: #ba1a1a;
+  --tertiary: #63548c;
+}
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  font-family: "Microsoft YaHei", Roboto, sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* ===== 顶栏（小、贴边，非大标题）===== */
+header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+header i { font-size: 18px; }
+header h1 { font-size: 17px; font-weight: 600; }
+header .count {
+  margin-left: auto; font-size: 12px;
+  background: rgba(255,255,255,.2);
+  border-radius: 99px; padding: 4px 10px;
+}
+
+main { padding: 12px 16px 24px; }
+
+/* ===== 折叠面板 ===== */
+details.section {
+  border: 1px solid var(--surface-variant);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+details.section[open] { border-color: var(--primary-container); }
+summary {
+  list-style: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px;
+  font-size: 14px; font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+summary::-webkit-details-marker { display: none; }
+summary .chev { margin-left: auto; font-size: 12px; color: var(--on-surface-variant); transition: transform .2s; }
+details[open] summary .chev { transform: rotate(180deg); }
+.section-body { padding: 0 16px 14px; }
+
+/* ===== 控件 ===== */
+.row { display: flex; gap: 8px; margin-top: 12px; }
+.row button { flex: 1; }
+
+button {
+  min-height: 44px;
+  border: none; border-radius: 12px;
+  padding: 0 12px;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: filter .2s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button:hover { filter: brightness(1.08); }
+button:active { transform: scale(.97); }
+.btn-filled { background: var(--primary); color: var(--on-primary); }
+.btn-tonal  { background: var(--primary-container); color: var(--on-primary-container); }
+.btn-text   { background: transparent; color: var(--primary); }
+
+textarea {
+  width: 100%;
+  height: 110px;
+  padding: 10px;
+  border: 1px solid var(--surface-variant);
+  border-radius: 10px;
+  background: var(--surface);
+  font-family: monospace; font-size: 12px;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+/* ===== 预览：横排紧凑（字 + 信息并排）===== */
+.preview-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px;
+}
+canvas {
+  width: 96px; height: 96px; flex-shrink: 0;
+  border-radius: 12px;
+  image-rendering: pixelated;
+  background: #000;
+  display: none;
+}
+#info { font-size: 13px; color: var(--on-surface-variant); line-height: 1.7; }
+
+#msg {
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  min-height: 0;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 99px;
+  background: var(--on-surface);
+  color: var(--surface);
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+  max-width: 90vw;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#msg.show { opacity: 1; }
+.ok { color: #a5d6a7; }
+.err { color: #ef9a9a; }
+.warn { color: #ffe082; }
+
+/* ===== 字库列表：卡片行，非表格 ===== */
+#empty { text-align: center; padding: 32px 0; color: var(--on-surface-variant); display: none; }
+#empty i { font-size: 32px; color: var(--tertiary); margin-bottom: 8px; display: block; }
+.char-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--surface-variant);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+.char-item .glyph {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  border-radius: 10px;
+}
+.char-item .meta { font-size: 12px; color: var(--on-surface-variant); line-height: 1.6; }
+.char-item .meta b { font-size: 13px; color: var(--on-surface); font-family: monospace; }
+.char-item .del {
+  margin-left: auto;
+  min-height: 36px; min-width: 36px; padding: 0;
+  color: var(--error); border-radius: 10px;
+}
+#tblWrap { display: none; }
+#tblWrap h2 {
+  font-size: 14px; margin: 16px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <i class="fas fa-table-cells"></i>
+  <h1>字模管理器</h1>
+  <span class="count" id="count">0 字</span>
+</header>
+
+<main>
+  <!-- 面板 1：导入 / 解析 / 预览 -->
+  <details class="section" open>
+    <summary><i class="fas fa-wand-magic-sparkles" style="color:var(--primary)"></i>导入与预览<i class="fas fa-chevron-down chev"></i></summary>
+    <div class="section-body">
+      <textarea id="ta" placeholder="粘贴取模代码，或点下方导入文件…"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn-tonal" onclick="document.getElementById('file').click()">
+          <i class="fas fa-file-import"></i>导入文件
+        </button>
+        <button class="btn-text" onclick="ta.value=''; parseInput()">
+          <i class="fas fa-eraser"></i>清空
+        </button>
+      </div>
+      <div class="row">
+        <button class="btn-filled" onclick="parseInput()"><i class="fas fa-eye"></i>解析预览</button>
+        <button class="btn-filled" style="background:var(--tertiary)" onclick="saveChar()"><i class="fas fa-floppy-disk"></i>存入</button>
+      </div>
+      <div class="preview-row">
+        <canvas id="cv" width="192" height="192"></canvas>
+        <div id="info"></div>
+      </div>
+    </div>
+  </details>
+
+  <input type="file" id="file" accept=".txt,.c,.h" style="display:none" onchange="loadFile(this)">
+
+  <!-- 面板 2：备份 -->
+  <details class="section">
+    <summary><i class="fas fa-cloud-arrow-down" style="color:var(--primary)"></i>备份与导出<i class="fas fa-chevron-down chev"></i></summary>
+    <div class="section-body">
+      <div class="row" style="margin-top:0">
+        <button class="btn-tonal" onclick="exportC()"><i class="fas fa-download"></i>.h 文件</button>
+        <button class="btn-tonal" onclick="exportJSON()"><i class="fas fa-download"></i>备份</button>
+      </div>
+      <div class="row">
+        <button class="btn-tonal" onclick="document.getElementById('restore').click()">
+          <i class="fas fa-file-arrow-up"></i>导入备份
+        </button>
+      </div>
+    </div>
+  </details>
+  <input type="file" id="restore" accept=".json" style="display:none" onchange="importBackup(this)">
+
+  <!-- 面板 3：字库 -->
+  <details class="section">
+    <summary><i class="fas fa-book" style="color:var(--primary)"></i>已存字库<i class="fas fa-chevron-down chev"></i></summary>
+    <div class="section-body">
+      <div id="empty">
+        <i class="fas fa-box-open"></i>
+        <div style="font-size:13px">字库还是空的，存入第一个字吧</div>
+      </div>
+      <div id="tblWrap">
+        <div id="tbody"></div>
+        <button class="btn-text" style="color:var(--error); width:100%; margin-top:8px" onclick="clearAll()">
+          <i class="fas fa-trash-can"></i>清空全部
+        </button>
+      </div>
+    </div>
+  </details>
+</main>
+
+<div id="msg"></div>
+
+<script>
+const KEY = "font_db";
+let current = null, msgTimer = null;
+const $ = id => document.getElementById(id);
+const db = () => JSON.parse(localStorage.getItem(KEY) || "{}");
+const saveDB = d => localStorage.setItem(KEY, JSON.stringify(d));
+
+function toast(html, cls) {
+  const m = $("msg");
+  m.className = "show " + cls;
+  m.innerHTML = html;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => m.classList.remove("show"), 2200);
+}
+
+/* ================= 解析 ================= */
+function parse(text) {
+  const m = text.match(/[「"]\s*([\u4e00-\u9fa5])\s*[」"]/);
+  const char = m ? m[1] : null;
+  const n = text.match(/(\w+)\s*\[\s*\d+\s*\]/);
+  const name = n ? n[1] : "unknown";
+  const data = [...text.matchAll(/0[xX][0-9a-fA-F]+/g)].map(x => parseInt(x[0], 16));
+  return (char && data.length) ? { char, name, data } : null;
+}
+
+/* ================= 预览：24x24 纵向取模 Bit0在上 ================= */
+function drawPreview(data) {
+  const cv = $("cv");
+  cv.style.display = "block";
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, 192, 192);
+  ctx.fillStyle = "#fff";
+  for (let col = 0; col < 24; col++)
+    for (let page = 0; page < 3; page++) {
+      const byte = data[col * 3 + page] || 0;
+      for (let bit = 0; bit < 8; bit++)
+        if (byte & (1 << bit)) ctx.fillRect(col * 8, (page * 8 + bit) * 8, 7, 7);
+    }
+}
+
+function parseInput() {
+  const r = parse($("ta").value);
+  if (!r) {
+    current = null;
+    $("cv").style.display = "none";
+    $("info").textContent = "";
+    toast('<i class="fas fa-circle-exclamation"></i> 解析失败：没找到汉字或数据', "err");
+    return;
+  }
+  current = r;
+  drawPreview(r.data);
+  $("info").innerHTML = `<b style="font-size:20px">${r.char}</b><br>${r.name}<br>${r.data.length} 字节`;
+}
+
+function saveChar() {
+  if (!current) { toast("请先点「解析预览」", "warn"); return; }
+  const d = db();
+  if (d[current.char]) { toast(`<i class="fas fa-triangle-exclamation"></i> 「${current.char}」已经存过了！`, "warn"); return; }
+  d[current.char] = current;
+  saveDB(d);
+  toast(`<i class="fas fa-circle-check"></i> 「${current.char}」已存入`, "ok");
+  renderList();
+}
+
+/* ================= 列表管理 ================= */
+function delChar(ch) {
+  const d = db();
+  delete d[ch];
+  saveDB(d);
+  renderList();
+}
+function clearAll() {
+  if (confirm("确定清空全部字库？")) { saveDB({}); renderList(); }
+}
+function renderList() {
+  const d = db();
+  const keys = Object.keys(d);
+  $("count").textContent = keys.length + " 字";
+  $("tblWrap").style.display = keys.length ? "block" : "none";
+  $("empty").style.display = keys.length ? "none" : "block";
+  $("tbody").innerHTML = keys.map(ch => `
+    <div class="char-item">
+      <div class="glyph">${ch}</div>
+      <div class="meta"><b>${d[ch].name}</b><br>${d[ch].data.length} 字节</div>
+      <button class="btn-text del" onclick="delChar('${ch}')"><i class="fas fa-delete-left"></i></button>
+    </div>`).join("");
+}
+
+/* ================= 下载导出 ================= */
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+function exportC() {
+  const d = db();
+  const keys = Object.keys(d);
+  if (!keys.length) { alert("字库是空的，先存几个字吧"); return; }
+  let code = "/* 自动生成的中文字库 24x24 纵向取模 Bit0在上 阴码 */\n";
+  code += "#ifndef FONT_ZH24_H\n#define FONT_ZH24_H\n\n#include <stdint.h>\n\n";
+  keys.forEach(ch => {
+    const item = d[ch];
+    code += `/* 「${ch}」 */\n`;
+    code += `const uint8_t font_${item.charCodeAt(0).toString(16)}[${item.data.length}] = {\n`;
+    for (let i = 0; i < item.data.length; i += 12) {
+      const line = item.data.slice(i, i + 12).map(x => "0x" + x.toString(16).padStart(2, "0"));
+      code += "  " + line.join(", ") + ",\n";
+    }
+    code += "};\n\n";
+  });
+  code += "#endif\n";
+  downloadFile("font_zh24.h", code, "text/plain");
+  toast(`<i class="fas fa-circle-check"></i> 已导出 ${keys.length} 个字的 C 代码`, "ok");
+}
+function exportJSON() {
+  const d = db();
+  if (!Object.keys(d).length) { alert("字库是空的"); return; }
+  downloadFile("font_db_backup.json", JSON.stringify(d, null, 2), "application/json");
+}
+function importBackup(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      const merged = { ...db(), ...d };
+      saveDB(merged);
+      renderList();
+      toast(`<i class="fas fa-circle-check"></i> 备份已导入，共 ${Object.keys(merged).length} 个字`, "ok");
+    } catch { alert("文件格式不对"); }
+  };
+  reader.readAsText(f, "utf-8");
+}
+
+/* ================= 文件导入 ================= */
+function loadFile(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    $("ta").value = e.target.result;
+    parseInput();
+  };
+  reader.readAsText(f, "utf-8");
+}
+renderList();
+</script>
+</body>
+</html>
