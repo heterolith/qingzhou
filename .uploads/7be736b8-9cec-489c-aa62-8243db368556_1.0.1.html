@@ -354,7 +354,7 @@ function exportC() {
   keys.forEach(ch => {
     const item = d[ch];
     code += `/* 「${ch}」 */\n`;
-    code += `const uint8_t font_${item.charCodeAt(0).toString(16)}[${item.data.length}] = {\n`;
+    code += `const uint8_t font_${ch.charCodeAt(0).toString(16)}[${item.data.length}] = {\n`;
     for (let i = 0; i < item.data.length; i += 12) {
       const line = item.data.slice(i, i + 12).map(x => "0x" + x.toString(16).padStart(2, "0"));
       code += "  " + line.join(", ") + ",\n";
