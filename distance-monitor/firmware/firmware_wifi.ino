@@ -1,15 +1,12 @@
 /* ==========================================================
    firmware_wifi.ino — 距离监测仪 WiFi 联机版固件（中文版）
-   OLED 显示全部中文：
+   使用自定义 24x24 中文字库 font_zh24.h
+   OLED 显示：
      - 启动：网络名称 + WiFi 名
-     - 正常测距：距离数字 + 底部进度条（越近越满）
+     - 正常测距：距离 + 数字 + 底部进度条（越近越满）
      - 小于15cm：过近警告，距离越近闪烁越快
      - 测不到：无效
-   依赖库（Arduino IDE 库管理器安装）：
-     - ESP8266 board package
-     - U8g2（OLED 驱动，支持中文字体）
-     - Links2004/arduinoWebSockets（WebSocket 服务端）
-     - ArduinoJson
+   依赖库：ESP8266 board、U8g2、arduinoWebSockets、ArduinoJson
    ========================================================== */
 
 #include <ESP8266WiFi.h>
@@ -17,6 +14,7 @@
 #include <ArduinoJson.h>
 #include <U8g2lib.h>
 #include <Wire.h>
+#include "font_zh24.h"
 
 /* ===== WiFi 配置 ===== */
 const char* WIFI_SSID = "iQOONeo 10";
@@ -35,7 +33,7 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 5, 4);
 /* ===== WebSocket ===== */
 WebSocketsServer webSocket(81);
 
-/* ===== 运行时参数（网页可改阈值）===== */
+/* ===== 运行时参数 ===== */
 float tmpThreshold = TMP_THRESHOLD;
 
 /* ===== 计时器 ===== */
@@ -47,10 +45,95 @@ bool wifiConnected = false;
 bool wsStarted = false;
 
 /* ==========================================================
+   中文字库查找表：Unicode → 字模数据
+   字库格式：24x24，纵向取模，Bit0在上，阴码(1=亮)
+   ========================================================== */
+struct ZhChar {
+  uint16_t unicode;
+  const uint8_t* data;
+};
+
+const ZhChar zhFontTable[] = {
+  {0x8DDD, font_8ddd},  // 距
+  {0x79BB, font_79bb},  // 离
+  {0x7F51, font_7f51},  // 网
+  {0x7EDC, font_7edc},  // 络
+  {0x540D, font_540d},  // 名
+  {0x79F0, font_79f0},  // 称
+  {0x8FC7, font_8fc7},  // 过
+  {0x8FD1, font_8fd1},  // 近
+  {0x8B66, font_8b66},  // 警
+  {0x544A, font_544a},  // 告
+  {0x65E0, font_65e0},  // 无
+  {0x6548, font_6548},  // 效
+};
+
+#define ZH_COUNT (sizeof(zhFontTable) / sizeof(zhFontTable[0]))
+
+/* 绘制单个 24x24 中文字符 */
+void drawZhChar(int x, int y, uint16_t unicode) {
+  for (int i = 0; i < ZH_COUNT; i++) {
+    if (zhFontTable[i].unicode == unicode) {
+      const uint8_t* data = zhFontTable[i].data;
+      for (int col = 0; col < 24; col++) {
+        for (int byte = 0; byte < 3; byte++) {
+          uint8_t b = data[col * 3 + byte];
+          for (int bit = 0; bit < 8; bit++) {
+            if (b & (1 << bit)) {       // 阴码：1=亮
+              u8g2.drawPixel(x + col, y + byte * 8 + bit);
+            }
+          }
+        }
+      }
+      return;
+    }
+  }
+}
+
+/* 绘制中文字符串（UTF-8），返回总宽度 */
+int drawZhString(int x, int y, const char* str) {
+  int startX = x;
+  while (*str) {
+    if ((*str & 0xF0) == 0xE0) {  // 3字节 UTF-8（中文）
+      uint16_t unicode = ((str[0] & 0x0F) << 12) |
+                         ((str[1] & 0x3F) << 6)  |
+                         (str[2] & 0x3F);
+      drawZhChar(x, y, unicode);
+      x += 24;
+      str += 3;
+    } else {
+      str++;
+    }
+  }
+  return x - startX;
+}
+
+/* 计算中文字符串宽度（像素） */
+int zhStringWidth(const char* str) {
+  int w = 0;
+  while (*str) {
+    if ((*str & 0xF0) == 0xE0) {
+      w += 24;
+      str += 3;
+    } else {
+      str++;
+    }
+  }
+  return w;
+}
+
+/* 居中绘制中文字符串 */
+void drawZhCentered(int y, const char* str) {
+  int w = zhStringWidth(str);
+  int x = (128 - w) / 2;
+  drawZhString(x, y, str);
+}
+
+/* ==========================================================
    工具：画进度条（越近越满）
    ========================================================== */
 void drawProgressBar(float d) {
-  int barX = 4, barY = 56, barW = 120, barH = 6;
+  int barX = 4, barY = 54, barW = 120, barH = 8;
   u8g2.drawFrame(barX, barY, barW, barH);
 
   if (d < 0) d = 0;
@@ -64,16 +147,7 @@ void drawProgressBar(float d) {
 }
 
 /* ==========================================================
-   工具：居中绘制字符串
-   ========================================================== */
-void drawCentered(const char* text, int y) {
-  int w = u8g2.getStrWidth(text);
-  int x = (128 - w) / 2;
-  u8g2.drawStr(x, y, text);
-}
-
-/* ==========================================================
-   测距（三次取中值，与 1.txt 一致）
+   测距（三次取中值）
    ========================================================== */
 float measureOnce() {
   digitalWrite(TRIG_PIN, LOW);
@@ -103,9 +177,8 @@ float measureMedian() {
    ========================================================== */
 void showInvalid() {
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered("无效", 32);
-  drawProgressBar(MAX_DISTANCE);  // 无效时空条
+  drawZhCentered(20, "无效");
+  drawProgressBar(MAX_DISTANCE);
   u8g2.sendBuffer();
   delay(200);
 }
@@ -119,14 +192,13 @@ void showTmp(float d) {
   if (interval < 60) interval = 60;
   if (interval > 500) interval = 500;
 
-  String distStr = String((int)d) + " cm";
-
   // 亮屏
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered("过近警告", 20);
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered(distStr.c_str(), 42);
+  drawZhCentered(0, "过近警告");
+  u8g2.setFont(u8g2_font_ncenB18_tr);
+  String distStr = String((int)d) + "cm";
+  int w = u8g2.getStrWidth(distStr.c_str());
+  u8g2.drawStr((128 - w) / 2, 44, distStr.c_str());
   drawProgressBar(d);
   u8g2.sendBuffer();
   delay(interval);
@@ -141,13 +213,14 @@ void showTmp(float d) {
    显示：正常测距（≥ tmpThreshold）
    ========================================================== */
 void showNormal(float d) {
-  String distStr = String((int)d) + " cm";
-
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered("距离", 18);
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered(distStr.c_str(), 40);
+  drawZhCentered(0, "距离");
+
+  u8g2.setFont(u8g2_font_ncenB18_tr);
+  String distStr = String((int)d) + "cm";
+  int w = u8g2.getStrWidth(distStr.c_str());
+  u8g2.drawStr((128 - w) / 2, 44, distStr.c_str());
+
   drawProgressBar(d);
   u8g2.sendBuffer();
   delay(150);
@@ -158,33 +231,37 @@ void showNormal(float d) {
    ========================================================== */
 void showConnecting() {
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered("网络名称", 14);
+  drawZhCentered(0, "网络名称");
 
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered(WIFI_SSID, 32);
+  u8g2.setFont(u8g2_font_10x20_tf);
+  int w = u8g2.getStrWidth(WIFI_SSID);
+  u8g2.drawStr((128 - w) / 2, 40, WIFI_SSID);
 
   // 动画点
   int dots = (millis() / 400) % 4;
   String dotsStr = "";
   for (int i = 0; i < dots; i++) dotsStr += ".";
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered(dotsStr.c_str(), 50);
+  u8g2.setFont(u8g2_font_10x20_tf);
+  int dw = u8g2.getStrWidth(dotsStr.c_str());
+  u8g2.drawStr((128 - dw) / 2, 60, dotsStr.c_str());
 
   u8g2.sendBuffer();
 }
 
 /* ==========================================================
-   显示：连接成功（IP + 端口，2.5秒）
+   显示：连接成功（直接显示 IP）
    ========================================================== */
 void showWiFiOK() {
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered("连接成功", 14);
 
-  u8g2.setFont(u8g2_font_wqy16_t_gb2312);
-  drawCentered(WiFi.localIP().toString().c_str(), 32);
-  drawCentered(":81", 48);
+  u8g2.setFont(u8g2_font_ncenB18_tr);
+  String ipStr = WiFi.localIP().toString();
+  int w = u8g2.getStrWidth(ipStr.c_str());
+  u8g2.drawStr((128 - w) / 2, 28, ipStr.c_str());
+
+  u8g2.setFont(u8g2_font_10x20_tf);
+  int pw = u8g2.getStrWidth(":81");
+  u8g2.drawStr((128 - pw) / 2, 50, ":81");
 
   u8g2.sendBuffer();
 }
@@ -281,7 +358,6 @@ void setup() {
 
   Wire.begin(4, 5);  // SDA=GPIO4(D2), SCL=GPIO5(D1)
   u8g2.begin();
-  u8g2.enableUTF8Print();
 
   Serial.println("OLED ok");
   Serial.printf("连接 WiFi: %s\n", WIFI_SSID);
